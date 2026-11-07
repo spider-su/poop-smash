@@ -135,6 +135,9 @@ func _input(event: InputEvent) -> void:
 
 func _press_ui(position: Vector2) -> bool:
 	var size := get_viewport_rect().size
+	if arcade_mode and round_finished and position.y >= size.y * 0.40 and position.y <= size.y * 0.61:
+		_start_round()
+		return true
 	if position.y >= size.y - 160.0:
 		if position.x < size.x * 0.5:
 			sound_enabled = not sound_enabled
@@ -292,7 +295,6 @@ func _draw() -> void:
 	var font := ThemeDB.fallback_font
 	draw_string(font, Vector2(58, 115), "POOP SMASH", HORIZONTAL_ALIGNMENT_LEFT, -1, 58, INK)
 	draw_string(font, Vector2(58, 175), "Squish it. Smash it. Again!", HORIZONTAL_ALIGNMENT_LEFT, -1, 28, BROWN)
-	_draw_hud(font, size)
 	var c := _center() + squish_offset
 	if burst_timer > 0.0:
 		var fade := clampf(burst_timer / BURST_LENGTH, 0.0, 1.0)
@@ -330,6 +332,7 @@ func _draw() -> void:
 		else:
 			draw_arc(face + Vector2(0, 62), 42, 0.16, PI - 0.16, 24, INK, 9.0, true)
 		draw_string(font, Vector2(size.x * 0.5 - 135, size.y * 0.78), "TAP  •  HOLD  •  DRAG", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, BROWN)
+	_draw_hud(font, size)
 	_draw_footer(font, size)
 
 func _draw_hud(font: Font, size: Vector2) -> void:
@@ -348,7 +351,7 @@ func _draw_hud(font: Font, size: Vector2) -> void:
 		draw_rect(Rect2(Vector2(35, size.y * 0.42), Vector2(size.x - 70, 180)), Color("#fff6e8"), true)
 		draw_string(font, Vector2(76, size.y * 0.48), "TIME'S UP!", HORIZONTAL_ALIGNMENT_LEFT, -1, 48, INK)
 		draw_string(font, Vector2(76, size.y * 0.53), "SCORE %d   BEST %d" % [score, best_score], HORIZONTAL_ALIGNMENT_LEFT, -1, 26, BROWN)
-		draw_string(font, Vector2(76, size.y * 0.56), "Tap FREE PLAY to exit", HORIZONTAL_ALIGNMENT_LEFT, -1, 23, INK)
+		draw_string(font, Vector2(76, size.y * 0.56), "Tap here to play again", HORIZONTAL_ALIGNMENT_LEFT, -1, 23, INK)
 
 func _draw_footer(font: Font, size: Vector2) -> void:
 	var top := size.y - 156.0
