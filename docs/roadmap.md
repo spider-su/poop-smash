@@ -1,24 +1,21 @@
 # Poop Smash roadmap
 
-## Completed
-- [x] Finger-responsive elastic squish and randomized funny sound effects
-- [x] Four characters: Classic, Frozen, Golden and Volcano
-- [x] 60-second arcade mode, capped combos, saved personal best
-- [x] Start screen offering free play or 60-second challenge
-- [x] Button hitboxes, visible sound and vibration controls
-- [x] Dedicated results overlay with final score, max combo, replay and menu
-- [x] Randomized synthesized character-like chirps over impact audio
-- [x] CI tests for game rules and UI hitboxes; Android debug APK
+## Built
+- [x] Mobile-first main menu, Free Play and 60-second Challenge
+- [x] Four poop types, elastic touch reactions and sound variations
+- [x] Combo scoring, personal best, saved sound/haptics options
+- [x] Original generated app icon, registered as Godot and Android icon
+- [x] Glossy rounded buttons, colorful menu, polished HUD, and confetti results
+- [x] Character highlights, touch ripples, clearer score feedback
+- [x] CI checks plus Android debug APK export
 
-## Next
-- [ ] On-device user experience verification, especially phone safe areas and fonts
-- [ ] Original illustrated character sprites, higher-fidelity deformation and effects
-- [ ] Accessibility, orientation/viewport scaling and smooth animation refinements
-- [ ] Release icons, store graphics and signed AAB
-- [ ] Closed testing and gameplay feedback
+## Still to validate
+- [ ] Icon quality and crop on different Android launchers and adaptive shapes
+- [ ] Real-device UI layout, safe areas, audio, haptics and frame rate
+- [ ] Physical squish aesthetics versus illustrated icon (currently procedural character)
+- [ ] Final store artwork and release AAB
 
-## Manual playtest
-Launch -> Main Menu -> Free Play -> Menu -> 60-second challenge -> Results ->
-Play Again -> Main Menu. Confirm sounds/haptics toggles remain saved after
-restarting. Test repeated taps, hold-to-burst, rapid swiping, mixed types,
-combo expiration, end-of-round input lock and personal-best persistence.
+## Manual acceptance
+Verify Android launcher icon, start screen choices, 60-second timer,
+character palette changes, scoring, replay/menu, touch positions, haptics and
+settings persistence. Capture screenshots on a tall and a short Android phone.

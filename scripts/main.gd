@@ -4,6 +4,7 @@ const Rules = preload("res://scripts/squish_rules.gd")
 const ScoreRules = preload("res://scripts/score_rules.gd")
 const Variants = preload("res://scripts/poop_variants.gd")
 const Screens = preload("res://scripts/screen_flow.gd")
+const APP_ICON = preload("res://assets/branding/app-icon.png")
 const SAVE_PATH := "user://poop_smash.cfg"
 const ROUND_SECONDS := 60.0
 const BASE_RADIUS := 176.0
@@ -57,6 +58,9 @@ var particle_size: Array[float] = []
 var rng := RandomNumberGenerator.new()
 var sound_player: AudioStreamPlayer
 var sound_cooldown := 0.0
+var touch_flash := 0.0
+var touch_position := Vector2.ZERO
+var celebration_time := 0.0
 
 func _ready() -> void:
 	rng.randomize()
@@ -76,6 +80,9 @@ func _process(delta: float) -> void:
 		if remaining_seconds <= 0.0:
 			_finish_round()
 	reward_timer = maxf(0.0, reward_timer - delta)
+	touch_flash = maxf(0.0, touch_flash - dt * 3.0)
+	if screen == Screens.RESULTS:
+		celebration_time += dt
 	combo_window = maxf(0.0, combo_window - delta)
 	if combo_window <= 0.0:
 		combo_count = 0
@@ -226,6 +233,7 @@ func _finish_round() -> void:
 	holding = false
 	active_touch = -1
 	screen = Screens.RESULTS
+	celebration_time = 0.0
 	latest_record = score > best_score
 	if latest_record:
 		best_score = score
@@ -275,6 +283,8 @@ func _press(position: Vector2) -> bool:
 	finger_start = position
 	hold_seconds = 0.0
 	pressure = Rules.add_pressure(pressure, Rules.TAP_GAIN * Variants.pressure_multiplier(current_variant))
+	touch_position = position
+	touch_flash = 1.0
 	squash_velocity += 3.8
 	expression = ["surprised", "worried", "laugh"][rng.randi_range(0, 2)]
 	expression_timer = 0.45
@@ -291,6 +301,8 @@ func _drag(position: Vector2, relative: Vector2) -> void:
 	if not holding or burst_timer > 0.0:
 		return
 	finger = position
+	touch_position = position
+	touch_flash = 0.6
 	drag_stretch = (position - finger_start).limit_length(220.0) * 0.28
 	pressure = Rules.add_pressure(pressure, minf(relative.length() / 550.0, Rules.DRAG_GAIN) * Variants.pressure_multiplier(current_variant))
 	if relative.length() >= 18.0:
@@ -363,11 +375,9 @@ func _ellipse(center: Vector2, radii: Vector2, color: Color, distort: bool = fal
 
 func _draw() -> void:
 	var size := get_viewport_rect().size
-	draw_rect(Rect2(Vector2.ZERO, size), CREAM)
+	_draw_background(size)
 	_ellipse(Vector2(size.x * 0.5, size.y * 0.87), Vector2(260, 42), Color("#f2d4b0"))
 	var font := ThemeDB.fallback_font
-	draw_string(font, Vector2(58, 115), "POOP SMASH", HORIZONTAL_ALIGNMENT_LEFT, -1, 58, INK)
-	draw_string(font, Vector2(58, 175), "Squish it. Smash it. Again!", HORIZONTAL_ALIGNMENT_LEFT, -1, 28, BROWN)
 	var palette := Variants.palette(current_variant)
 	var body_dark: Color = palette[0]
 	var body_light: Color = palette[1]
@@ -383,10 +393,13 @@ func _draw() -> void:
 		var bounce := sin(wobble * 2.0) * 4.0 * (1.0 - pressure)
 		var rx := BASE_RADIUS * dims.x
 		var ry := BASE_RADIUS * dims.y
+		_ellipse(c + Vector2(0, 121 + bounce), Vector2(rx * 1.18, ry * 0.83), body_dark.darkened(0.27), true)
 		_ellipse(c + Vector2(0, 110 + bounce), Vector2(rx * 1.15, ry * 0.79), body_dark, true)
 		_ellipse(c + Vector2(0, 42 + bounce), Vector2(rx * 0.89, ry * 0.81), body_light, true)
 		_ellipse(c + Vector2(0, -55 + bounce), Vector2(rx * 0.67, ry * 0.72), body_dark, true)
 		_ellipse(c + Vector2(0, -122 + bounce), Vector2(rx * 0.37, ry * 0.49), body_light, true)
+		_ellipse(c + Vector2(-38, -113 + bounce), Vector2(17, 31), Color(1, 1, 1, 0.25), true)
+		_ellipse(c + Vector2(-113, 56 + bounce), Vector2(19, 35), Color(1, 1, 1, 0.17), true)
 		if current_variant == Variants.FROZEN:
 			# Distinct icy shine and jagged frost across the crown.
 			draw_line(c + Vector2(-82, -110), c + Vector2(-42, -154), Color.WHITE, 7.0)
@@ -417,6 +430,8 @@ func _draw() -> void:
 		else:
 			draw_arc(face + Vector2(0, 62), 42, 0.16, PI - 0.16, 24, INK, 9.0, true)
 		draw_string(font, Vector2(size.x * 0.5 - 135, size.y * 0.78), "TAP  •  HOLD  •  DRAG", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, BROWN)
+	if touch_flash > 0.0 and screen == Screens.PLAY:
+		draw_arc(touch_position, 28.0 + (1.0 - touch_flash) * 46.0, 0.0, TAU, 32, Color(1, 1, 1, touch_flash * 0.7), 5.0)
 	if screen == Screens.MENU:
 		_draw_menu(font, size)
 	elif screen == Screens.RESULTS:
@@ -425,63 +440,95 @@ func _draw() -> void:
 		_draw_hud(font, size)
 		_draw_footer(font, size)
 
+func _draw_background(size: Vector2) -> void:
+	var top := Color("#89dafa") if screen == Screens.MENU else Color("#fff3d3")
+	var bottom := Color("#f6a9cf") if screen == Screens.MENU else Color("#f9d5ad")
+	for i in 32:
+		var t := float(i) / 31.0
+		draw_rect(Rect2(0, size.y * t, size.x, size.y / 31.0 + 2.0), top.lerp(bottom, t))
+	for i in 13:
+		var x := size.x * (0.1 + float((i * 47) % 81) / 100.0)
+		var y := size.y * (0.10 + float((i * 29) % 72) / 100.0)
+		var r := float(5 + (i * 11) % 22)
+		draw_circle(Vector2(x, y + sin(wobble + float(i)) * 8.0), r, Color(1, 1, 1, 0.13))
+
 func _round_rect(rect: Rect2, color: Color, radius: float = 20.0) -> void:
-	# Nine rectangles/circles are unnecessary for this simplified button skin.
-	draw_rect(rect, color)
-	var highlight := rect
-	highlight.size.y = 5.0
-	draw_rect(highlight, color.lightened(0.20))
+	var r := minf(radius, minf(rect.size.x, rect.size.y) * 0.45)
+	var vertices := PackedVector2Array()
+	for corner in 4:
+		var origin := Vector2(rect.end.x - r, rect.position.y + r)
+		if corner == 1:
+			origin = rect.end - Vector2.ONE * r
+		elif corner == 2:
+			origin = Vector2(rect.position.x + r, rect.end.y - r)
+		elif corner == 3:
+			origin = rect.position + Vector2.ONE * r
+		for j in 9:
+			var a := (float(corner) - 1.0) * PI / 2.0 + float(j) * PI / 16.0
+			vertices.append(origin + Vector2(cos(a), sin(a)) * r)
+	draw_colored_polygon(vertices, color)
 
 func _button(font: Font, rect: Rect2, label: String, background: Color, foreground: Color = Color.WHITE, font_size: int = 30) -> void:
-	_round_rect(rect, background)
+	var shadow := Rect2(rect.position + Vector2(0, 7), rect.size)
+	_round_rect(shadow, background.darkened(0.48), 28.0)
+	_round_rect(rect, background, 28.0)
+	draw_line(rect.position + Vector2(32, 9), Vector2(rect.end.x - 32, rect.position.y + 9), background.lightened(0.27), 4.0, true)
 	var baseline := rect.position.y + (rect.size.y + float(font_size)) * 0.5 - 7.0
-	draw_string(font, Vector2(rect.position.x + 20.0, baseline), label, HORIZONTAL_ALIGNMENT_CENTER, int(rect.size.x - 40.0), font_size, foreground)
+	draw_string(font, Vector2(rect.position.x + 18.0, baseline), label, HORIZONTAL_ALIGNMENT_CENTER, int(rect.size.x - 36.0), font_size, foreground)
 
 func _draw_menu(font: Font, size: Vector2) -> void:
-	draw_rect(Rect2(0, 0, size.x, 300), Color("#fff0d6"))
-	draw_string(font, Vector2(48, 105), "POOP SMASH!", HORIZONTAL_ALIGNMENT_LEFT, -1, 62, INK)
-	draw_string(font, Vector2(50, 161), "The world's silliest squishy toy", HORIZONTAL_ALIGNMENT_LEFT, -1, 27, BROWN)
-	draw_string(font, Vector2(55, size.y * 0.60), "TAP  •  STRETCH  •  SPLAT!", HORIZONTAL_ALIGNMENT_CENTER, int(size.x - 110), 29, INK)
-	_button(font, Screens.menu_arcade_rect(size), "60-SECOND CHALLENGE", Color("#df7641"), Color.WHITE, 31)
-	_button(font, Screens.menu_free_rect(size), "FREE PLAY", Color("#8c5630"), Color.WHITE, 31)
-	draw_string(font, Vector2(48, size.y - 64), "NO ADS  •  OFFLINE  •  HIGH SCORE %d" % best_score, HORIZONTAL_ALIGNMENT_CENTER, int(size.x - 96), 22, BROWN)
+	# Menu logo uses the same original illustration as the launcher icon.
+	draw_string(font, Vector2(30, 118), "POOP SMASH!", HORIZONTAL_ALIGNMENT_CENTER, int(size.x - 60), 64, Color("#75351d"))
+	draw_string(font, Vector2(40, 173), "SQUISH • SPLAT • LAUGH!", HORIZONTAL_ALIGNMENT_CENTER, int(size.x - 80), 25, Color("#8c5630"))
+	var pulse := 1.0 + 0.022 * sin(wobble * 2.0)
+	var icon_size := minf(size.x * 0.53, size.y * 0.33) * pulse
+	var icon_rect := Rect2(Vector2((size.x - icon_size) * 0.5, size.y * 0.305 - icon_size * 0.5), Vector2.ONE * icon_size)
+	draw_texture_rect(APP_ICON, icon_rect, false)
+	draw_string(font, Vector2(40, size.y * 0.60), "Your finger is the weapon!", HORIZONTAL_ALIGNMENT_CENTER, int(size.x - 80), 27, INK)
+	_button(font, Screens.menu_arcade_rect(size), "60-SECOND CHALLENGE", Color("#f6ac1f"), Color("#62361d"), 31)
+	_button(font, Screens.menu_free_rect(size), "FREE PLAY", Color("#4bd73e"), Color("#24431b"), 32)
+	draw_string(font, Vector2(32, size.y - 43), "OFFLINE • NO ADS • BEST %d" % best_score, HORIZONTAL_ALIGNMENT_CENTER, int(size.x - 64), 23, Color("#673c37"))
 
 func _draw_hud(font: Font, size: Vector2) -> void:
-	draw_rect(Rect2(0, 0, size.x, 360), CREAM)
-	draw_string(font, Vector2(42, 88), "POOP SMASH", HORIZONTAL_ALIGNMENT_LEFT, -1, 46, INK)
-	draw_string(font, Vector2(42, 135), "%s  •  %s" % [Variants.display_name(current_variant), Variants.description(current_variant)], HORIZONTAL_ALIGNMENT_LEFT, int(size.x - 84), 23, BROWN)
+	_round_rect(Rect2(18, 22, size.x - 36, 288), Color("#fff5df"), 28.0)
+	draw_string(font, Vector2(42, 83), "POOP SMASH", HORIZONTAL_ALIGNMENT_LEFT, -1, 47, INK)
+	draw_string(font, Vector2(42, 130), "%s • %s" % [Variants.display_name(current_variant), Variants.description(current_variant)], HORIZONTAL_ALIGNMENT_LEFT, int(size.x - 84), 24, BROWN)
 	if arcade_mode:
-		draw_string(font, Vector2(42, 207), "TIME %02d" % ceili(remaining_seconds), HORIZONTAL_ALIGNMENT_LEFT, -1, 38, INK)
-		draw_string(font, Vector2(310, 207), "SCORE %d" % score, HORIZONTAL_ALIGNMENT_LEFT, -1, 34, INK)
-		draw_rect(Rect2(42, 229, size.x - 84, 13), Color("#e5c99f"))
-		draw_rect(Rect2(42, 229, (size.x - 84) * remaining_seconds / ROUND_SECONDS, 13), Color("#e99352"))
+		draw_string(font, Vector2(42, 203), "TIME %02d" % ceili(remaining_seconds), HORIZONTAL_ALIGNMENT_LEFT, -1, 37, INK)
+		draw_string(font, Vector2(312, 203), "SCORE %d" % score, HORIZONTAL_ALIGNMENT_LEFT, int(size.x - 344), 32, INK)
+		_round_rect(Rect2(42, 223, size.x - 84, 18), Color("#e7d0a8"), 9.0)
+		if remaining_seconds > 0.0:
+			_round_rect(Rect2(42, 223, (size.x - 84) * remaining_seconds / ROUND_SECONDS, 18), Color("#f5a129"), 9.0)
 		if combo_count > 1 and combo_window > 0.0:
-			draw_string(font, Vector2(44, 296), "COMBO x%d" % mini(combo_count, ScoreRules.MAX_MULTIPLIER), HORIZONTAL_ALIGNMENT_LEFT, -1, 31, Color("#c34c68"))
+			draw_string(font, Vector2(42, 284), "COMBO x%d" % mini(combo_count, ScoreRules.MAX_MULTIPLIER), HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color("#bb3c6a"))
 	else:
-		draw_string(font, Vector2(42, 209), "FREE PLAY   •   SMASHES %d" % round_smashes, HORIZONTAL_ALIGNMENT_LEFT, -1, 31, INK)
+		draw_string(font, Vector2(42, 208), "FREE PLAY • %d SMASHES" % round_smashes, HORIZONTAL_ALIGNMENT_LEFT, int(size.x - 84), 30, INK)
 	if reward_timer > 0.0 and arcade_mode:
-		draw_string(font, Vector2(42, 340), "+%d!" % last_reward, HORIZONTAL_ALIGNMENT_LEFT, -1, 33, Color("#c34c68"))
+		draw_string(font, Vector2(42, 355 - 12.0 * (1.0 - reward_timer / 1.3)), "+%d" % last_reward, HORIZONTAL_ALIGNMENT_LEFT, -1, 36, Color("#bd396a"))
 
 func _draw_footer(font: Font, size: Vector2) -> void:
-	var y := size.y - 148.0
-	draw_rect(Rect2(0, y - 8, size.x, 156), Color("#f6dfbe"))
-	_button(font, Screens.play_menu_rect(size), "MENU", Color("#8c5630"), Color.WHITE, 25)
-	_button(font, Screens.play_sound_rect(size), "SOUND %s" % ("ON" if sound_enabled else "OFF"), Color("#bd874d"), Color.WHITE, 22)
-	_button(font, Screens.play_haptic_rect(size), "VIBE %s" % ("ON" if haptics_enabled else "OFF"), Color("#bd874d"), Color.WHITE, 22)
-	draw_string(font, Vector2(35, size.y - 19), "TAP · HOLD · DRAG", HORIZONTAL_ALIGNMENT_CENTER, int(size.x - 70), 20, BROWN)
+	_round_rect(Rect2(9, size.y - 165, size.x - 18, 150), Color("#ffedce"), 25.0)
+	_button(font, Screens.play_menu_rect(size), "MENU", Color("#9656cb"), Color.WHITE, 25)
+	_button(font, Screens.play_sound_rect(size), "SOUND %s" % ("ON" if sound_enabled else "OFF"), Color("#e29a40"), Color.WHITE, 22)
+	_button(font, Screens.play_haptic_rect(size), "VIBE %s" % ("ON" if haptics_enabled else "OFF"), Color("#e29a40"), Color.WHITE, 22)
+	draw_string(font, Vector2(35, size.y - 23), "TAP · HOLD · DRAG", HORIZONTAL_ALIGNMENT_CENTER, int(size.x - 70), 22, BROWN)
 
 func _draw_results(font: Font, size: Vector2) -> void:
-	draw_rect(Rect2(0, 0, size.x, size.y), Color(0.18, 0.12, 0.09, 0.81))
-	var panel := Rect2(32, size.y * 0.26, size.x - 64, size.y * 0.56)
-	_round_rect(panel, Color("#fff1d8"))
-	draw_string(font, Vector2(58, panel.position.y + 72), "TIME'S UP!", HORIZONTAL_ALIGNMENT_CENTER, int(size.x - 116), 53, INK)
+	draw_rect(Rect2(0, 0, size.x, size.y), Color(0.20, 0.09, 0.32, 0.91))
+	for i in 32:
+		var x := size.x * float((i * 37 + 17) % 101) / 101.0
+		var y := fposmod(float((i * 71) % 100) / 100.0 * size.y + celebration_time * (35.0 + float(i % 5) * 15.0), size.y)
+		_ellipse(Vector2(x, y), Vector2(6, 12), Color("#ffc24c") if i % 2 == 0 else Color("#ed82bc"))
+	var panel := Rect2(30, size.y * 0.26, size.x - 60, size.y * 0.56)
+	_round_rect(panel, Color("#f8e6ff"), 34.0)
+	draw_string(font, Vector2(58, panel.position.y + 71), "CHALLENGE COMPLETE!", HORIZONTAL_ALIGNMENT_CENTER, int(size.x - 116), 36, Color("#6a2c9b"))
 	var subtitle := "NEW PERSONAL BEST!" if latest_record else "NICE SMASHING!"
-	draw_string(font, Vector2(58, panel.position.y + 121), subtitle, HORIZONTAL_ALIGNMENT_CENTER, int(size.x - 116), 29, Color("#b65f40"))
-	draw_string(font, Vector2(55, panel.position.y + 210), "%d POINTS" % score, HORIZONTAL_ALIGNMENT_CENTER, int(size.x - 110), 48, INK)
-	draw_string(font, Vector2(56, panel.position.y + 270), "%d SMASHES   •   MAX COMBO x%d" % [round_smashes, mini(max_combo, ScoreRules.MAX_MULTIPLIER)], HORIZONTAL_ALIGNMENT_CENTER, int(size.x - 112), 25, BROWN)
-	draw_string(font, Vector2(56, panel.position.y + 320), "BEST SCORE   %d" % best_score, HORIZONTAL_ALIGNMENT_CENTER, int(size.x - 112), 28, INK)
-	_button(font, Screens.results_retry_rect(size), "PLAY AGAIN", Color("#df7641"), Color.WHITE, 32)
-	_button(font, Screens.results_menu_rect(size), "MAIN MENU", Color("#8c5630"), Color.WHITE, 27)
+	draw_string(font, Vector2(58, panel.position.y + 125), subtitle, HORIZONTAL_ALIGNMENT_CENTER, int(size.x - 116), 28, Color("#b7426a"))
+	draw_string(font, Vector2(55, panel.position.y + 220), "%d POINTS" % score, HORIZONTAL_ALIGNMENT_CENTER, int(size.x - 110), 48, Color("#7432ab"))
+	draw_string(font, Vector2(56, panel.position.y + 271), "%d SMASHES • MAX COMBO x%d" % [round_smashes, mini(max_combo, ScoreRules.MAX_MULTIPLIER)], HORIZONTAL_ALIGNMENT_CENTER, int(size.x - 112), 24, BROWN)
+	draw_string(font, Vector2(56, panel.position.y + 319), "PERSONAL BEST: %d" % best_score, HORIZONTAL_ALIGNMENT_CENTER, int(size.x - 112), 27, INK)
+	_button(font, Screens.results_retry_rect(size), "PLAY AGAIN", Color("#57d538"), Color("#294d21"), 32)
+	_button(font, Screens.results_menu_rect(size), "MAIN MENU", Color("#9451d7"), Color.WHITE, 27)
 
 func _play_voice() -> void:
 	if not sound_enabled:
