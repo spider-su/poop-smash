@@ -2,6 +2,8 @@ extends RefCounted
 
 const Variants = preload("res://scripts/poop_variants.gd")
 const Expressions = preload("res://scripts/character/poop_expressions.gd")
+const BODY_TEXTURE = preload("res://assets/character/gloss-material.png")
+const UVProfile = preload("res://scripts/character/body_uv_profile.gd")
 const INK := Color("#39160f")
 const CONTROL := [
 	Vector2(-155, 236), Vector2(-208, 209), Vector2(-225, 167),
@@ -22,6 +24,7 @@ var mesh_points := PackedVector2Array()
 var mesh_colors := PackedColorArray()
 var mesh_indices := PackedInt32Array()
 var mesh_variant := -1
+var mesh_uv := PackedVector2Array()
 var mesh_sources: Array[PackedInt32Array] = []
 
 func _init() -> void:
@@ -48,6 +51,31 @@ func _init() -> void:
 				mesh_sources.append(PackedInt32Array([edge.x, edge.y]))
 			var middle: int = midpoints[key]
 			mesh_indices.append_array(PackedInt32Array([edge.x, middle, center, middle, edge.y, center]))
+	for point in mesh_points:
+		mesh_uv.append(_material_uv(point))
+
+func _material_uv(point: Vector2) -> Vector2:
+	var top := rest[0].y
+	var bottom := top
+	for p in rest:
+		top = minf(top, p.y)
+		bottom = maxf(bottom, p.y)
+	var ratio := clampf((point.y - top) / (bottom - top), 0.0, 1.0)
+	var y := clampf(point.y, top + 0.01, bottom - 0.01)
+	var left := INF
+	var right := -INF
+	for i in rest.size():
+		var a := rest[i]
+		var b := rest[(i + 1) % rest.size()]
+		if y >= minf(a.y, b.y) and y <= maxf(a.y, b.y) and absf(a.y - b.y) > 0.0001:
+			var x := lerpf(a.x, b.x, (y - a.y) / (b.y - a.y))
+			left = minf(left, x)
+			right = maxf(right, x)
+	var across := clampf((point.x - left) / maxf(right - left, 0.01), 0.0, 1.0)
+	var row := ratio * (UVProfile.ROWS.size() - 1)
+	var low := mini(int(row), UVProfile.ROWS.size() - 2)
+	var span: Vector2 = UVProfile.ROWS[low].lerp(UVProfile.ROWS[low + 1], row - low)
+	return Vector2(lerpf(span.x, span.y, across), lerpf(UVProfile.TOP, UVProfile.BOTTOM, ratio))
 
 static func _catmull(a: Vector2, b: Vector2, c: Vector2, d: Vector2, t: float) -> Vector2:
 	return 0.5 * ((2.0 * b) + (-a + c) * t + (2.0 * a - 5.0 * b + 4.0 * c - d) * t * t + (-a + 3.0 * b - 3.0 * c + d) * t * t * t)
@@ -70,16 +98,9 @@ func deformed_vertices(d) -> PackedVector2Array:
 func _body_mesh(canvas: CanvasItem, d, kind: int, dark: Color, light: Color) -> void:
 	if mesh_variant != kind:
 		mesh_variant = kind
-		mesh_colors.clear()
-		for point in mesh_points:
-			var width := clampf(235.0 - (255.0 - point.y) * 0.38, 40.0, 235.0)
-			var normal_x := clampf(point.x / width, -1.0, 1.0)
-			var facing := sqrt(maxf(0.0, 1.0 - normal_x * normal_x))
-			var illumination := clampf(0.22 + facing * 0.64 - normal_x * 0.23 - point.y / 2100.0, 0.0, 1.0)
-			var color := dark.darkened(0.32).lerp(light.lightened(0.10), illumination)
-			var sheen := exp(-pow((point.x + width * 0.32) / (width * 0.26), 2.0))
-			sheen *= 0.12 + 0.14 * pow(sin((point.y + 250.0) * 0.024), 2.0)
-			mesh_colors.append(color.lerp(light.lightened(0.75), sheen))
+		# Neutral baked illumination supplies smooth depth without a shader.
+		mesh_colors.resize(mesh_points.size())
+		mesh_colors.fill(dark.lerp(light, 0.94).lightened(0.12))
 	var warped := deformed_vertices(d)
 	var vertices := PackedVector3Array()
 	vertices.resize(mesh_points.size())
@@ -91,10 +112,11 @@ func _body_mesh(canvas: CanvasItem, d, kind: int, dark: Color, light: Color) -> 
 	arrays[Mesh.ARRAY_VERTEX] = vertices
 	arrays[Mesh.ARRAY_COLOR] = mesh_colors
 	arrays[Mesh.ARRAY_INDEX] = mesh_indices
+	arrays[Mesh.ARRAY_TEX_UV] = mesh_uv
 	# Under 500 vertices; topology and lighting are cached, only positions move.
 	mesh.clear_surfaces()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	canvas.draw_mesh(mesh, null)
+	canvas.draw_mesh(mesh, BODY_TEXTURE)
 
 func _ellipse(canvas: CanvasItem, deformation, center: Vector2, radii: Vector2, color: Color) -> void:
 	var points := PackedVector2Array()
@@ -116,23 +138,11 @@ func draw_on(canvas: CanvasItem, deformation, expressions, kind: int, ratio: flo
 	var dark: Color = palette[0]
 	var light: Color = palette[1]
 	var outline := contour(deformation)
+	canvas.draw_colored_polygon(outline, dark.lerp(light, 0.65))
 	_body_mesh(canvas, deformation, kind, dark, light)
 	var closed := outline.duplicate()
 	closed.append(outline[0])
 	canvas.draw_polyline(closed, dark.darkened(0.32), 4.0, true)
-	# Curved seams and a narrow lit edge describe a single sculpted swirl.
-	for seam in [
-		[Vector2(-195, 124), Vector2(-105, 144), Vector2(35, 148), Vector2(162, 121), Vector2(181, 97)],
-		[Vector2(-152, 19), Vector2(-72, 42), Vector2(39, 40), Vector2(121, 10), Vector2(137, -6)],
-		[Vector2(-97, -91), Vector2(-54, -74), Vector2(23, -76), Vector2(74, -103)]
-	]:
-		var points: Array[Vector2] = []
-		points.assign(seam)
-		_path(canvas, deformation, points, dark.darkened(0.13), 11.0)
-		var upper: Array[Vector2] = []
-		for point in points:
-			upper.append(point + Vector2(0, -8))
-		_path(canvas, deformation, upper, light.lightened(0.17), 4.0)
 	for glint in [Vector2(-31, -153), Vector2(-91, -52)]:
 		for ring in range(5, 0, -1):
 			_ellipse(canvas, deformation, glint, Vector2(13, 25) * (0.6 + float(ring) * 0.15), Color(1, 1, 0.95, 0.055))

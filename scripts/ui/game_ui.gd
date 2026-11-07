@@ -154,12 +154,8 @@ func _draw_hud(size: Vector2) -> void:
 
 func _thumbnail(center: Vector2, kind: int, scale_factor: float = 0.18) -> void:
 	var palette := Variants.palette(kind)
-	var points := PackedVector2Array()
-	var colors := PackedColorArray()
-	for p in hero.rest:
-		points.append(center + p * scale_factor)
-		colors.append(palette[0].lerp(palette[1], clampf(0.6 - p.x / 600.0 - p.y / 850.0, 0.0, 1.0)))
-	draw_polygon(points, colors)
+	var radius := Vector2(245, 255) * scale_factor
+	draw_texture_rect(Renderer.BODY_TEXTURE, Rect2(center - radius, radius * 2), false, palette[1].lightened(0.12))
 	for side in [-1, 1]:
 		var eye := center + Vector2(side * 62, -16) * scale_factor
 		draw_circle(eye, scale_factor * 41, Color.WHITE)
