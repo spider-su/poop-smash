@@ -6,6 +6,7 @@ const Variants = preload("res://scripts/poop_variants.gd")
 const Screens = preload("res://scripts/screen_flow.gd")
 const Character = preload("res://scripts/character/poop_character.gd")
 const GameUI = preload("res://scripts/ui/game_ui.gd")
+const PARK = preload("res://assets/backgrounds/park.png")
 const SAVE_PATH := "user://poop_smash.cfg"
 const ROUND_SECONDS := 60.0
 const BURST_LENGTH := 0.82
@@ -65,13 +66,13 @@ func _layout() -> void:
 			var factor := content_size / physical
 			content_origin = safe.position * factor
 			content_size = safe.size * factor
-	var top := 345.0
-	var bottom := content_size.y - 195.0
+	var top := 270.0
+	var bottom := content_size.y - 230.0
 	if screen == Screens.MENU:
-		top = 235.0
-		bottom = Screens.menu_arcade_rect(content_size).position.y - 100.0
+		top = 320.0
+		bottom = Screens.menu_free_rect(content_size).position.y - 80.0
 	var available := maxf(200.0, bottom - top)
-	var character_scale := minf(1.02, minf((content_size.x - 110.0) / 620.0, available / 560.0))
+	var character_scale := minf(1.32, minf((content_size.x - 80.0) / 480.0, available / 540.0))
 	character.position = content_origin + Vector2(content_size.x * 0.5, (top + bottom) * 0.5 - 8.0)
 	character.scale = Vector2.ONE * character_scale
 	queue_redraw()
@@ -269,13 +270,11 @@ func _draw() -> void:
 		points.append(shadow + Vector2(cos(a) * 210, sin(a) * 24) * character.scale)
 	draw_colored_polygon(points, Color(0.42, 0.23, 0.22, 0.13))
 func _draw_background(size: Vector2) -> void:
-	var top := Color("#89dafa") if screen == Screens.MENU else Color("#fff3d3")
-	var bottom := Color("#f6a9cf") if screen == Screens.MENU else Color("#f9d5ad")
-	for i in 32:
-		var t := float(i) / 31.0
-		draw_rect(Rect2(0, size.y * t, size.x, size.y / 31.0 + 2.0), top.lerp(bottom, t))
-	for i in 13:
-		var x := size.x * (0.1 + float((i * 47) % 81) / 100.0)
-		var y := size.y * (0.10 + float((i * 29) % 72) / 100.0)
-		var r := float(5 + (i * 11) % 22)
-		draw_circle(Vector2(x, y + sin(wobble + float(i)) * 8.0), r, Color(1, 1, 1, 0.13))
+	var texture_size := Vector2(PARK.get_size())
+	var cover := maxf(size.x / texture_size.x, size.y / texture_size.y)
+	var drawn := texture_size * cover
+	draw_texture_rect(PARK, Rect2((size - drawn) * 0.5, drawn), false)
+	for i in 9:
+		var x := size.x * (0.08 + float((i * 47) % 84) / 100.0)
+		var y := size.y * (0.12 + float((i * 29) % 70) / 100.0)
+		draw_circle(Vector2(x, y + sin(wobble * 0.5 + i) * 7.0), float(3 + i % 4 * 2), Color(1, 1, 0.9, 0.20))

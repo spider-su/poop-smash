@@ -6,36 +6,35 @@ const PLAY := 1
 const RESULTS := 2
 
 static func menu_arcade_rect(size: Vector2) -> Rect2:
-	return Rect2(52, size.y - 330, size.x - 104, 86)
+	return Rect2(52, size.y - 230, size.x - 104, 108)
 
 static func menu_free_rect(size: Vector2) -> Rect2:
-	return Rect2(52, size.y - 220, size.x - 104, 80)
+	return Rect2(52, size.y - 352, size.x - 104, 100)
 
 static func play_menu_rect(size: Vector2) -> Rect2:
-	return Rect2(16, size.y - 137, (size.x - 52) * 0.25, 75)
+	return Rect2(22, 24, 90, 90)
 
 static func play_sound_rect(size: Vector2) -> Rect2:
-	var width := size.x - 52
-	return Rect2(26 + width * 0.25, size.y - 137, width * 0.36, 75)
+	return Rect2(24, size.y - 72, 144, 52)
 
 static func play_haptic_rect(size: Vector2) -> Rect2:
-	var width := size.x - 52
-	return Rect2(36 + width * 0.61, size.y - 137, width * 0.39, 75)
+	return Rect2(size.x - 168, size.y - 72, 144, 52)
 
 static func results_panel_rect(size: Vector2) -> Rect2:
-	var height := minf(size.y * 0.76, 760.0)
-	return Rect2(30, (size.y - height) * 0.5, size.x - 60, height)
+	return Rect2(30, size.y * 0.41, size.x - 60, size.y * 0.58)
 
 static func results_retry_rect(size: Vector2) -> Rect2:
-	var panel := results_panel_rect(size)
-	return Rect2(60, panel.end.y - 166, size.x - 120, 75)
+	return Rect2(48, size.y * 0.805, size.x - 96, size.y * 0.085)
 
 static func results_menu_rect(size: Vector2) -> Rect2:
-	var panel := results_panel_rect(size)
-	return Rect2(60, panel.end.y - 80, size.x - 120, 60)
+	return Rect2(size.x * 0.20, size.y * 0.91, size.x * 0.60, size.y * 0.065)
 
 static func hit_action(screen: int, position: Vector2, size: Vector2) -> String:
 	if screen == MENU:
+		if play_sound_rect(size).has_point(position):
+			return "sound"
+		if play_haptic_rect(size).has_point(position):
+			return "haptics"
 		if menu_arcade_rect(size).has_point(position):
 			return "arcade"
 		if menu_free_rect(size).has_point(position):

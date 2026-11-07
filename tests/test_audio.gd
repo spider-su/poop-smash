@@ -34,7 +34,8 @@ func _run() -> void:
 	_check(audio.players[1].stream == null, "Rapid tapping bypassed audio cooldown")
 	audio.play("burst", 0)
 	_check(audio.players[0].stream == first and audio.players[1].stream != null, "New sound interrupted the previous clip")
-	await process_frame
+	# Let the mixer start both playbacks even on a busy headless runner.
+	await create_timer(0.10).timeout
 	audio.enabled = false
 	for player in audio.players:
 		_check(not player.playing, "Muted audio is still playing")
