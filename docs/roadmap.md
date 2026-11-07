@@ -8,30 +8,30 @@
 - [x] Smash counter
 - [x] Godot headless test + Android APK workflow
 
-## M1 — character feel (iteration 1)
+## M1 — character feel
 - [x] Finger-position deformation and drag stretch
 - [x] Spring-driven wobble and shape recovery
 - [x] Animated face: eye tracking, blinking and reactions
 - [x] Particle movement, gravity and shrinking during splat
 - [x] Varied generated squish, drag and burst sounds
-- [x] Optional haptic hook on mobile (enabled, settings UI pending)
-- [ ] Real device acceptance and tuning
-- [ ] Audio/haptics settings controls and persistent preferences
-- [ ] Richer localized squash mesh, voiced character quips, richer particles
+- [x] Toggle sound and haptics, persist choices locally
+- [ ] Physical Android device playtest and tuning
+- [ ] Richer deformation and voiced character quips
 
 ## M2 — short game loop
-- [ ] 60-second arcade challenge, combos and best score
+- [x] Optional 60-second arcade challenge with timer and game-over state
+- [x] Points and combo multipliers, capped at x5
+- [x] Local personal best score and preferences
 - [ ] Different poop types and special reactions
-- [ ] Local progress and settings
-- [ ] Illustration, icon and Play Store assets
+- [ ] Better game-over and retry UI
+- [ ] Artwork, icon and Play Store assets
 
 ## M3 — release
-- [ ] Mobile accessibility and performance pass
-- [ ] Release signing, AAB and store compliance
-- [ ] Closed test and player feedback
+- [ ] Accessibility, Android performance and device acceptance
+- [ ] Release signing and AAB
+- [ ] Closed testing and player feedback
 
 ## Testing
-Run headless import, test_squish_rules, and scene boot through CI. On device, check:
-tap→expression/sound; hold→pressure/burst; drag→stretch/eye tracking;
-release→elastic return; splat→droplets→respawn; 30+ repeated bursts;
-different finger IDs; silent or haptic-disabled device behaviour.
+Use Godot headless import, squish tests, scoring tests, and scene boot. Check a real
+Android device for interactions, sound toggle, vibration toggle, exact 60-second
+round ending, score persistence after app relaunch, and returning to free play.

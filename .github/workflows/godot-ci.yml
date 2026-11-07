@@ -53,6 +53,8 @@ jobs:
         run: godot --headless --path . --editor --import --quit
       - name: Run squish rules tests
         run: godot --headless --path . --script res://tests/test_squish_rules.gd
+      - name: Run arcade scoring tests
+        run: godot --headless --path . --script res://tests/test_score_rules.gd
       - name: Boot playable scene
         run: godot --headless --path . --quit-after 5
       - name: Configure debug keystore

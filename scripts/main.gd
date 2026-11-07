@@ -1,6 +1,9 @@
 extends Node2D
 
 const Rules = preload("res://scripts/squish_rules.gd")
+const ScoreRules = preload("res://scripts/score_rules.gd")
+const SAVE_PATH := "user://poop_smash.cfg"
+const ROUND_SECONDS := 60.0
 const BASE_RADIUS := 176.0
 const BROWN := Color("#865029")
 const LIGHT_BROWN := Color("#b6773c")
@@ -21,6 +24,13 @@ var squash_velocity := 0.0
 var drag_stretch := Vector2.ZERO
 var hold_seconds := 0.0
 var total_smashes := 0
+var arcade_mode := false
+var round_finished := false
+var remaining_seconds := ROUND_SECONDS
+var score := 0
+var best_score := 0
+var combo_count := 0
+var combo_window := 0.0
 var wobble := 0.0
 var burst_timer := 0.0
 var blink_timer := 1.7
@@ -41,10 +51,18 @@ func _ready() -> void:
 	sound_player = AudioStreamPlayer.new()
 	add_child(sound_player)
 	finger = _center()
+	_load_preferences()
 	queue_redraw()
 
 func _process(delta: float) -> void:
 	var dt := minf(delta, 0.033)
+	if arcade_mode and not round_finished:
+		remaining_seconds = maxf(0.0, remaining_seconds - delta)
+		if remaining_seconds <= 0.0:
+			_finish_round()
+	combo_window = maxf(0.0, combo_window - delta)
+	if combo_window <= 0.0:
+		combo_count = 0
 	wobble += dt * 3.0
 	sound_cooldown = maxf(0.0, sound_cooldown - dt)
 	blink_timer -= dt
@@ -95,6 +113,8 @@ func _process(delta: float) -> void:
 func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		if event.pressed and active_touch == -1:
+			if _press_ui(event.position):
+				return
 			if _press(event.position):
 				active_touch = event.index
 		elif not event.pressed and active_touch == event.index:
@@ -104,6 +124,8 @@ func _input(event: InputEvent) -> void:
 			_drag(event.position, event.relative)
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed and active_touch == -1:
+			if _press_ui(event.position):
+				return
 			if _press(event.position):
 				active_touch = -2
 		elif not event.pressed and active_touch == -2:
@@ -111,11 +133,74 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion and active_touch == -2:
 		_drag(event.position, event.relative)
 
+func _press_ui(position: Vector2) -> bool:
+	var size := get_viewport_rect().size
+	if position.y >= size.y - 160.0:
+		if position.x < size.x * 0.5:
+			sound_enabled = not sound_enabled
+			if not sound_enabled:
+				sound_player.stop()
+		else:
+			haptics_enabled = not haptics_enabled
+		_save_preferences()
+		return true
+	if position.y >= 245.0 and position.y <= 325.0:
+		if arcade_mode:
+			arcade_mode = false
+			round_finished = false
+			remaining_seconds = ROUND_SECONDS
+			combo_count = 0
+			combo_window = 0.0
+		else:
+			_start_round()
+		return true
+	return false
+
+func _start_round() -> void:
+	arcade_mode = true
+	round_finished = false
+	remaining_seconds = ROUND_SECONDS
+	score = 0
+	combo_count = 0
+	combo_window = 0.0
+	pressure = 0.0
+	burst_timer = 0.0
+	holding = false
+	active_touch = -1
+	particles.clear()
+	particle_velocity.clear()
+	particle_size.clear()
+
+func _finish_round() -> void:
+	round_finished = true
+	holding = false
+	active_touch = -1
+	if score > best_score:
+		best_score = score
+		_save_preferences()
+
+func _load_preferences() -> void:
+	var cfg := ConfigFile.new()
+	if cfg.load(SAVE_PATH) != OK:
+		return
+	best_score = maxi(0, int(cfg.get_value("arcade", "best_score", 0)))
+	sound_enabled = bool(cfg.get_value("settings", "sound", true))
+	haptics_enabled = bool(cfg.get_value("settings", "haptics", true))
+
+func _save_preferences() -> void:
+	var cfg := ConfigFile.new()
+	cfg.set_value("arcade", "best_score", best_score)
+	cfg.set_value("settings", "sound", sound_enabled)
+	cfg.set_value("settings", "haptics", haptics_enabled)
+	var result := cfg.save(SAVE_PATH)
+	if result != OK:
+		push_warning("Could not save Poop Smash preferences: %s" % error_string(result))
+
 func _center() -> Vector2:
 	return get_viewport_rect().size * Vector2(0.5, 0.53)
 
 func _press(position: Vector2) -> bool:
-	if burst_timer > 0.0 or not Rules.is_inside(position, _center(), BASE_RADIUS * 1.3):
+	if burst_timer > 0.0 or (arcade_mode and round_finished) or not Rules.is_inside(position, _center(), BASE_RADIUS * 1.3):
 		return false
 	holding = true
 	finger = position
@@ -162,6 +247,13 @@ func _burst() -> void:
 	holding = false
 	active_touch = -1
 	total_smashes += 1
+	if arcade_mode and not round_finished:
+		combo_count = ScoreRules.next_combo(combo_count, combo_window)
+		combo_window = ScoreRules.COMBO_WINDOW_SECONDS
+		score += ScoreRules.points_for_smash(combo_count)
+		if score > best_score:
+			best_score = score
+			_save_preferences()
 	expression = "surprised"
 	particles.clear()
 	particle_velocity.clear()
@@ -200,7 +292,7 @@ func _draw() -> void:
 	var font := ThemeDB.fallback_font
 	draw_string(font, Vector2(58, 115), "POOP SMASH", HORIZONTAL_ALIGNMENT_LEFT, -1, 58, INK)
 	draw_string(font, Vector2(58, 175), "Squish it. Smash it. Again!", HORIZONTAL_ALIGNMENT_LEFT, -1, 28, BROWN)
-	draw_string(font, Vector2(58, 239), "SMASHES: %d" % total_smashes, HORIZONTAL_ALIGNMENT_LEFT, -1, 32, INK)
+	_draw_hud(font, size)
 	var c := _center() + squish_offset
 	if burst_timer > 0.0:
 		var fade := clampf(burst_timer / BURST_LENGTH, 0.0, 1.0)
@@ -238,7 +330,32 @@ func _draw() -> void:
 		else:
 			draw_arc(face + Vector2(0, 62), 42, 0.16, PI - 0.16, 24, INK, 9.0, true)
 		draw_string(font, Vector2(size.x * 0.5 - 135, size.y * 0.78), "TAP  •  HOLD  •  DRAG", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, BROWN)
-	draw_string(font, Vector2(58, size.y - 84), "Every burst brings a fresh little monster!", HORIZONTAL_ALIGNMENT_LEFT, -1, 24, INK)
+	_draw_footer(font, size)
+
+func _draw_hud(font: Font, size: Vector2) -> void:
+	if arcade_mode:
+		draw_string(font, Vector2(58, 228), "TIME: %02d   SCORE: %d" % [ceili(remaining_seconds), score], HORIZONTAL_ALIGNMENT_LEFT, -1, 31, INK)
+		if combo_count > 1 and combo_window > 0.0 and not round_finished:
+			draw_string(font, Vector2(58, 365), "COMBO x%d!" % mini(combo_count, ScoreRules.MAX_MULTIPLIER), HORIZONTAL_ALIGNMENT_LEFT, -1, 30, PINK)
+		draw_string(font, Vector2(58, 410), "BEST: %d" % best_score, HORIZONTAL_ALIGNMENT_LEFT, -1, 25, BROWN)
+	else:
+		draw_string(font, Vector2(58, 230), "SMASHES: %d    BEST: %d" % [total_smashes, best_score], HORIZONTAL_ALIGNMENT_LEFT, -1, 28, INK)
+	var control := Rect2(Vector2(48, 249), Vector2(size.x - 96, 76))
+	draw_rect(control, BROWN, true)
+	var text_value := "FREE PLAY" if arcade_mode else "START 60s CHALLENGE"
+	draw_string(font, Vector2(73, 302), text_value, HORIZONTAL_ALIGNMENT_LEFT, -1, 27, Color.WHITE)
+	if round_finished:
+		draw_rect(Rect2(Vector2(35, size.y * 0.42), Vector2(size.x - 70, 180)), Color("#fff6e8"), true)
+		draw_string(font, Vector2(76, size.y * 0.48), "TIME'S UP!", HORIZONTAL_ALIGNMENT_LEFT, -1, 48, INK)
+		draw_string(font, Vector2(76, size.y * 0.53), "SCORE %d   BEST %d" % [score, best_score], HORIZONTAL_ALIGNMENT_LEFT, -1, 26, BROWN)
+		draw_string(font, Vector2(76, size.y * 0.56), "Tap FREE PLAY to exit", HORIZONTAL_ALIGNMENT_LEFT, -1, 23, INK)
+
+func _draw_footer(font: Font, size: Vector2) -> void:
+	var top := size.y - 156.0
+	draw_rect(Rect2(0, top, size.x, 156), Color("#f6dfbe"))
+	draw_string(font, Vector2(37, top + 60), "SOUND: %s" % ("ON" if sound_enabled else "OFF"), HORIZONTAL_ALIGNMENT_LEFT, -1, 28, INK)
+	draw_string(font, Vector2(size.x * 0.5 + 16, top + 60), "VIBRATE: %s" % ("ON" if haptics_enabled else "OFF"), HORIZONTAL_ALIGNMENT_LEFT, -1, 28, INK)
+	draw_string(font, Vector2(35, top + 114), "Tap / hold / drag the monster!", HORIZONTAL_ALIGNMENT_LEFT, -1, 23, BROWN)
 
 func _play_sound(kind: String) -> void:
 	if not sound_enabled:
