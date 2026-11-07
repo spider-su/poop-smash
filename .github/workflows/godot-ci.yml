@@ -58,8 +58,6 @@ jobs:
           done
       - name: Boot playable scene
         run: bash scripts/check_godot.sh godot --headless --path . --quit-after 120
-      - name: Install Godot Gradle Android template
-        run: bash scripts/check_godot.sh godot --headless --path . --editor --install-android-build-template --quit
       - name: Install software display for real game captures
         run: sudo apt-get update -qq && sudo apt-get install -y xvfb libgl1-mesa-dri
       - name: Capture actual game on portrait, short and tall displays
@@ -125,7 +123,7 @@ jobs:
       - name: Build debug Android App Bundle
         run: |
           sed -i -E "s/^version\\/code=[0-9]+$/version\\/code=$((1000 + GITHUB_RUN_NUMBER))/" export_presets.cfg
-          bash scripts/check_godot.sh godot --headless --path . --export-debug "Android AAB" build/poop-smash-debug.aab
+          bash scripts/check_godot.sh godot --headless --path . --install-android-build-template --export-debug "Android AAB" build/poop-smash-debug.aab
           test -s build/poop-smash-debug.aab
           unzip -tq build/poop-smash-debug.aab
           unzip -l build/poop-smash-debug.aab | grep -q "base/manifest/AndroidManifest.xml"
