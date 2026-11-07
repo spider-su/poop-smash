@@ -14,12 +14,6 @@ class TestGame:
 		super()
 		character.audio.enabled = false
 
-	func _play_voice() -> void:
-		pass
-
-	func _rumble(_milliseconds: int) -> void:
-		pass
-
 var failures := 0
 
 func _initialize() -> void:

@@ -17,6 +17,20 @@ func _check(ok: bool, message: String) -> void:
 
 func _run() -> void:
 	var renderer := Renderer.new()
+	_check(renderer.mesh_points.size() < 500, "Character mesh exceeds vertex budget")
+	for angle in 8:
+		var extreme := Deformation.new()
+		extreme.reset()
+		extreme.tap(Vector2.from_angle(TAU * angle / 8.0) * 170.0)
+		extreme.drag(Vector2.from_angle(TAU * angle / 8.0) * 155.0)
+		extreme.step(0.5, 0.9)
+		var contour := renderer.contour(extreme)
+		var vertices := renderer.deformed_vertices(extreme)
+		for triangle in range(0, renderer.mesh_indices.size(), 3):
+			var center := Vector2.ZERO
+			for j in 3:
+				center += vertices[renderer.mesh_indices[triangle + j]] / 3.0
+			_check(Geometry2D.is_point_in_polygon(center, contour), "Mesh triangle escaped visible contour at maximum stretch: angle %d, triangle %d, center %s" % [angle, triangle, center])
 	for fps in [20, 30, 60, 120]:
 		var d := Deformation.new()
 		d.reset()

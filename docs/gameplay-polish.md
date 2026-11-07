@@ -5,7 +5,7 @@
 - `main.gd`: single-finger ownership, screen navigation, one gameplay clock, scoring, combos, settings and safe-area layout.
 - `character/poop_character.gd`: pressure and variant state; tap/drag/release/smash; coordinates the components and emits one scored smash and one respawn request.
 - `character/poop_deformation.gd`: bounded attachment spring, slower neighboring displacement, localized compression, damped recoil, idle breathing and entrance bounce. All elapsed time is integrated in steps no larger than 1/120 second.
-- `character/poop_renderer.gd`: one closed Catmull–Rom silhouette with vertex shading, attached swirl seams, highlights, face and variant marks. The same deformed contour is used for hit detection. No external art or heavy shader dependencies.
+- `character/poop_renderer.gd`: one closed Catmull–Rom silhouette and a 491-vertex shaded mesh, attached swirl seams, soft highlights, face and variant marks. Topology/lighting are cached; the same deformed contour is used for hit detection. No external art or heavy shader dependencies.
 - `character/poop_expressions.gd`: explicit expression states, blinking, independent brows, pupil tracking, mouth transitions and infrequent text bubbles.
 - `character/poop_effects.gd`: 85 ms anticipation followed by a bounded 0.82-second burst/respawn sequence, directional droplets, landing squashes, variant signatures and comic captions.
 - `character/poop_audio.gd`: 24 original cached synthesized clips, four non-interrupting players, category cooldowns, smooth envelopes and bounded overlapping volume.

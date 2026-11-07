@@ -17,22 +17,84 @@ const CONTROL := [
 	Vector2(0, 255)
 ]
 var rest := PackedVector2Array()
+var mesh := ArrayMesh.new()
+var mesh_points := PackedVector2Array()
+var mesh_colors := PackedColorArray()
+var mesh_indices := PackedInt32Array()
+var mesh_variant := -1
+var mesh_sources: Array[PackedInt32Array] = []
 
 func _init() -> void:
 	# One closed, continuous silhouette. Interior swirl lines never split the body.
 	for i in CONTROL.size():
 		for j in 4:
 			rest.append(_catmull(CONTROL[posmod(i - 1, CONTROL.size())], CONTROL[i], CONTROL[(i + 1) % CONTROL.size()], CONTROL[(i + 2) % CONTROL.size()], float(j) / 4.0))
+	# Subdivide a proper concave triangulation; a radial fan can cross swirl valleys.
+	mesh_points = rest.duplicate()
+	var triangles := Geometry2D.triangulate_polygon(rest)
+	var midpoints := {}
+	for i in range(0, triangles.size(), 3):
+		var a := triangles[i]
+		var b := triangles[i + 1]
+		var c := triangles[i + 2]
+		var center := mesh_points.size()
+		mesh_points.append((rest[a] + rest[b] + rest[c]) / 3.0)
+		mesh_sources.append(PackedInt32Array([a, b, c]))
+		for edge in [Vector2i(a, b), Vector2i(b, c), Vector2i(c, a)]:
+			var key := Vector2i(mini(edge.x, edge.y), maxi(edge.x, edge.y))
+			if not midpoints.has(key):
+				midpoints[key] = mesh_points.size()
+				mesh_points.append((rest[edge.x] + rest[edge.y]) * 0.5)
+				mesh_sources.append(PackedInt32Array([edge.x, edge.y]))
+			var middle: int = midpoints[key]
+			mesh_indices.append_array(PackedInt32Array([edge.x, middle, center, middle, edge.y, center]))
 
 static func _catmull(a: Vector2, b: Vector2, c: Vector2, d: Vector2, t: float) -> Vector2:
 	return 0.5 * ((2.0 * b) + (-a + c) * t + (2.0 * a - 5.0 * b + 4.0 * c - d) * t * t + (-a + 3.0 * b - 3.0 * c + d) * t * t * t)
 
 func contour(deformation) -> PackedVector2Array:
 	var result := PackedVector2Array()
-	result.resize(rest.size())
 	for i in rest.size():
-		result[i] = deformation.warp(rest[i])
+		result.append(deformation.warp(rest[i]))
 	return result
+
+func deformed_vertices(d) -> PackedVector2Array:
+	var vertices := contour(d)
+	for sources in mesh_sources:
+		var point := Vector2.ZERO
+		for source in sources:
+			point += vertices[source] / float(sources.size())
+		vertices.append(point)
+	return vertices
+
+func _body_mesh(canvas: CanvasItem, d, kind: int, dark: Color, light: Color) -> void:
+	if mesh_variant != kind:
+		mesh_variant = kind
+		mesh_colors.clear()
+		for point in mesh_points:
+			var width := clampf(235.0 - (255.0 - point.y) * 0.38, 40.0, 235.0)
+			var normal_x := clampf(point.x / width, -1.0, 1.0)
+			var facing := sqrt(maxf(0.0, 1.0 - normal_x * normal_x))
+			var illumination := clampf(0.22 + facing * 0.64 - normal_x * 0.23 - point.y / 2100.0, 0.0, 1.0)
+			var color := dark.darkened(0.32).lerp(light.lightened(0.10), illumination)
+			var sheen := exp(-pow((point.x + width * 0.32) / (width * 0.26), 2.0))
+			sheen *= 0.12 + 0.14 * pow(sin((point.y + 250.0) * 0.024), 2.0)
+			mesh_colors.append(color.lerp(light.lightened(0.75), sheen))
+	var warped := deformed_vertices(d)
+	var vertices := PackedVector3Array()
+	vertices.resize(mesh_points.size())
+	for i in mesh_points.size():
+		var p: Vector2 = warped[i]
+		vertices[i] = Vector3(p.x, p.y, 0)
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_COLOR] = mesh_colors
+	arrays[Mesh.ARRAY_INDEX] = mesh_indices
+	# Under 500 vertices; topology and lighting are cached, only positions move.
+	mesh.clear_surfaces()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	canvas.draw_mesh(mesh, null)
 
 func _ellipse(canvas: CanvasItem, deformation, center: Vector2, radii: Vector2, color: Color) -> void:
 	var points := PackedVector2Array()
@@ -54,19 +116,15 @@ func draw_on(canvas: CanvasItem, deformation, expressions, kind: int, ratio: flo
 	var dark: Color = palette[0]
 	var light: Color = palette[1]
 	var outline := contour(deformation)
-	var colors := PackedColorArray()
-	for point in rest:
-		var illumination := clampf(0.62 - point.x / 650.0 - point.y / 950.0, 0.0, 1.0)
-		colors.append(dark.darkened(0.20).lerp(light.lightened(0.10), illumination))
-	canvas.draw_polygon(outline, colors)
+	_body_mesh(canvas, deformation, kind, dark, light)
 	var closed := outline.duplicate()
 	closed.append(outline[0])
 	canvas.draw_polyline(closed, dark.darkened(0.32), 6.0, true)
 	# Curved seams and a narrow lit edge describe a single sculpted swirl.
 	for seam in [
-		[Vector2(-201, 120), Vector2(-105, 144), Vector2(35, 148), Vector2(162, 121), Vector2(190, 94)],
-		[Vector2(-165, 17), Vector2(-72, 42), Vector2(39, 40), Vector2(121, 10), Vector2(144, -13)],
-		[Vector2(-111, -96), Vector2(-54, -74), Vector2(23, -76), Vector2(76, -108)]
+		[Vector2(-195, 124), Vector2(-105, 144), Vector2(35, 148), Vector2(162, 121), Vector2(181, 97)],
+		[Vector2(-152, 19), Vector2(-72, 42), Vector2(39, 40), Vector2(121, 10), Vector2(137, -6)],
+		[Vector2(-97, -91), Vector2(-54, -74), Vector2(23, -76), Vector2(74, -103)]
 	]:
 		var points: Array[Vector2] = []
 		points.assign(seam)
@@ -75,8 +133,10 @@ func draw_on(canvas: CanvasItem, deformation, expressions, kind: int, ratio: flo
 		for point in points:
 			upper.append(point + Vector2(0, -8))
 		_path(canvas, deformation, upper, light.lightened(0.17), 4.0)
-	_ellipse(canvas, deformation, Vector2(-31, -153), Vector2(17, 28), Color(1, 1, 0.95, 0.45))
-	_ellipse(canvas, deformation, Vector2(-91, -52), Vector2(16, 29), Color(1, 1, 0.96, 0.27))
+	for glint in [Vector2(-31, -153), Vector2(-91, -52)]:
+		for ring in range(5, 0, -1):
+			_ellipse(canvas, deformation, glint, Vector2(13, 25) * (0.6 + float(ring) * 0.15), Color(1, 1, 0.95, 0.055))
+		_ellipse(canvas, deformation, glint + Vector2(-2, -5), Vector2(6, 13), Color(1, 1, 0.97, 0.42))
 	_path(canvas, deformation, [Vector2(-185, 162), Vector2(-169, 140), Vector2(-141, 134)], Color(1, 1, 1, 0.36), 9.0)
 	_ellipse(canvas, deformation, Vector2(140, 193), Vector2(43, 9), Color(1, 1, 1, 0.12))
 	_variant(canvas, deformation, expressions.age, kind, ratio, reduced)

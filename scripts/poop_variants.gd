@@ -46,4 +46,4 @@ static func palette(kind: int) -> Array[Color]:
 		FROZEN: return [Color("#3d95c7"), Color("#9de9fc")]
 		GOLDEN: return [Color("#c58c16"), Color("#ffe268")]
 		EXPLOSIVE: return [Color("#9a3730"), Color("#ff7c41")]
-		_: return [Color("#865029"), Color("#b6773c")]
+		_: return [Color("#8c3f22"), Color("#d9924b")]
