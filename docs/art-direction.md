@@ -7,7 +7,7 @@ The character remains the existing continuous deformable mesh. Its contour, pres
 ## Assets and provenance
 
 - `assets/backgrounds/park.png`: original background generated with the built-in imagegen tool. No reference UI or character is baked into it. Generated source preserved at `/Users/alex/.codex/generated_images/01a1b5ae-2274-74d3-b44d-19b7e588e500/exec-f04fc3f4-e87a-4bb9-9968-ea36a5279c00.png`; the shipped copy is inside this repository.
-- `assets/fonts/Fredoka.ttf`: Fredoka variable font from https://github.com/google/fonts/tree/main/ofl/fredoka, bundled offline at weight 700. SIL Open Font License is included as `assets/fonts/OFL.txt`.
+- `assets/fonts/Fredoka-Bold.ttf`: static 700-weight, 100-width instance of the Fredoka variable font from https://github.com/google/fonts/tree/main/ofl/fredoka, generated once with FontTools and bundled offline. No font tooling is required by the game or CI. SIL Open Font License is included as `assets/fonts/OFL.txt`.
 - All UI geometry, title lettering, controls, thumbnails and live characters are drawn by Godot. No phone frame, fake finger or flattened screenshot is used as game UI.
 
 Final generation prompt (built-in tool, opaque background):

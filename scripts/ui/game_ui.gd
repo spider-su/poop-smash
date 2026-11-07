@@ -6,21 +6,19 @@ const ScoreRules = preload("res://scripts/score_rules.gd")
 const Renderer = preload("res://scripts/character/poop_renderer.gd")
 const Deformation = preload("res://scripts/character/poop_deformation.gd")
 const Expressions = preload("res://scripts/character/poop_expressions.gd")
-const FONT = preload("res://assets/fonts/Fredoka.ttf")
 const INK := Color("#59210f")
 const PURPLE := Color("#6125a9")
 var game
-var font := FontVariation.new()
+var font := preload("res://assets/fonts/Fredoka-Bold.ttf")
 var hero := Renderer.new()
 var hero_deformation := Deformation.new()
 var hero_expression := Expressions.new()
 
 func _init() -> void:
-	font.base_font = FONT
-	font.variation_opentype = {"wght": 700.0, "wdth": 100.0}
 	hero_deformation.entrance = 1.0
 	hero_expression.state = Expressions.State.LAUGHING
 	hero_expression.mouth = 0.85
+	hero_expression.blink = 1.0 # Glasses cover closed eyes; no white edges protrude.
 
 func _draw() -> void:
 	if game == null:
@@ -121,7 +119,7 @@ func _draw_menu(size: Vector2) -> void:
 	_button(Screens.menu_free_rect(size), "Free Play", true, "play", 47)
 	_button(Screens.menu_arcade_rect(size), "60-Second Challenge", false, "clock", 35)
 	_settings(size)
-	_text(Rect2(180, size.y - 70, size.x - 360, 48), "Best: " + _number(game.best_score), 23, Color("#fff5bc"), PURPLE, 4)
+	_text(Rect2(180, size.y - 108, size.x - 360, 88), "Best: " + _number(game.best_score), 23, Color("#fff5bc"), PURPLE, 4)
 
 func _settings(size: Vector2) -> void:
 	for action in ["sound", "vibe"]:
@@ -171,7 +169,7 @@ func _thumbnail(center: Vector2, kind: int, scale_factor: float = 0.18) -> void:
 		draw_colored_polygon(PackedVector2Array([center + Vector2(-10, -31), center + Vector2(-12, -44), center + Vector2(0, -39), center + Vector2(9, -46), center + Vector2(13, -31)]), Color("#fff16c"))
 
 func _draw_footer(size: Vector2) -> void:
-	var dock := Rect2(24, size.y - 216, size.x - 48, 130)
+	var dock := Screens.variant_dock_rect(size)
 	_panel(dock, Color(0.58, 0.29, 0.66, 0.85), Color(0.38, 0.13, 0.5, 0.88), 30, Color("#ffcff5"))
 	var width := (dock.size.x - 16) / 4.0
 	for kind in Variants.ALL:
@@ -181,7 +179,7 @@ func _draw_footer(size: Vector2) -> void:
 		_thumbnail(cell.get_center() + Vector2(0, -20), kind)
 		_text(Rect2(cell.position.x, cell.end.y - 29, cell.size.x, 24), Variants.display_name(kind).capitalize(), 17, Color.WHITE, PURPLE, 3)
 	_settings(size)
-	_text(Rect2(185, size.y - 65, size.x - 370, 40), "Tap • Hold • Drag", 21, Color.WHITE, PURPLE, 3)
+	_text(Rect2(185, size.y - 108, size.x - 370, 88), "Tap • Hold • Drag", 21, Color.WHITE, PURPLE, 3)
 
 func _draw_results(size: Vector2) -> void:
 	for i in 32:
@@ -196,8 +194,8 @@ func _draw_results(size: Vector2) -> void:
 		draw_set_transform(game.content_origin + p, float(i), Vector2.ONE)
 		draw_rect(Rect2(-5, -9, 10, 18), [Color("#ffe646"), Color("#ff6aaa"), Color("#65e6ff")][i % 3])
 	draw_set_transform(game.content_origin)
-	_text(Rect2(20, 35, size.x - 40, 83), "Challenge", 68, Color("#fff6ff"), Color("#3d0c73"), 13)
-	_text(Rect2(20, 113, size.x - 40, 82), "Complete!", 72, Color("#fff6ff"), Color("#3d0c73"), 13)
+	_text(Rect2(20, 20, size.x - 40, 75), "Challenge", 62, Color("#fff6ff"), Color("#3d0c73"), 13)
+	_text(Rect2(20, 90, size.x - 40, 74), "Complete!", 66, Color("#fff6ff"), Color("#3d0c73"), 13)
 	var panel := Screens.results_panel_rect(size)
 	var hero_position := Vector2(size.x * 0.5, panel.position.y - 125)
 	var hero_scale := minf(0.94, size.y / 1420.0)

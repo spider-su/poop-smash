@@ -35,6 +35,12 @@ func _initialize() -> void:
 		if controls[0].intersects(controls[1]) or controls[1].intersects(controls[2]):
 			_fail("Footer controls overlap")
 			return
+		if Flow.variant_dock_rect(viewport).intersects(controls[1]) or Flow.variant_dock_rect(viewport).intersects(controls[2]):
+			_fail("Character legend overlaps settings")
+			return
+		if Flow.hit_action(Flow.MENU, Flow.play_sound_rect(viewport).get_center(), viewport) != "sound" or Flow.hit_action(Flow.MENU, Flow.play_haptic_rect(viewport).get_center(), viewport) != "haptics":
+			_fail("Menu settings not tappable")
+			return
 		if Flow.menu_arcade_rect(viewport).intersects(Flow.menu_free_rect(viewport)):
 			_fail("Menu actions overlap")
 			return
