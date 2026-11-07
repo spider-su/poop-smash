@@ -1,4 +1,5 @@
 .godot/
+android/
 build/
 .android/
 *.tmp

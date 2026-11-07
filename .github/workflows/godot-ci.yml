@@ -32,7 +32,7 @@ jobs:
         with:
           packages: 'platform-tools'
       - name: Android SDK
-        run: sdkmanager --install "platform-tools" "platforms;android-35" "build-tools;35.0.1"
+        run: sdkmanager --install "platform-tools" "platforms;android-35" "build-tools;35.0.1" "platforms;android-36" "build-tools;36.0.0"
       - name: Install pinned Godot and Android templates
         shell: bash
         run: |
@@ -47,7 +47,7 @@ jobs:
           echo "$RUNNER_TEMP/godot" >> "$GITHUB_PATH"
           curl -fL --retry 3 "$base/Godot_v${GODOT_RELEASE}_export_templates.tpz" -o "$RUNNER_TEMP/templates.tpz"
           echo "f298490b8d44d934be425a5a65a51bf15f422428b229a06a6e11d9ffea248011  $RUNNER_TEMP/templates.tpz" | sha256sum -c -
-          unzip -j -q "$RUNNER_TEMP/templates.tpz" "templates/android_debug.apk" "templates/version.txt" -d "$HOME/.local/share/godot/export_templates/$GODOT_TEMPLATE_VERSION"
+          unzip -j -q "$RUNNER_TEMP/templates.tpz" "templates/android_debug.apk" "templates/android_source.zip" "templates/version.txt" -d "$HOME/.local/share/godot/export_templates/$GODOT_TEMPLATE_VERSION"
           "$RUNNER_TEMP/godot/godot" --version
       - name: Import resources
         run: bash scripts/check_godot.sh godot --headless --path . --editor --import --quit
@@ -58,6 +58,8 @@ jobs:
           done
       - name: Boot playable scene
         run: bash scripts/check_godot.sh godot --headless --path . --quit-after 120
+      - name: Install Godot Gradle Android template
+        run: bash scripts/check_godot.sh godot --headless --path . --editor --install-android-build-template --quit
       - name: Install software display for real game captures
         run: sudo apt-get update -qq && sudo apt-get install -y xvfb libgl1-mesa-dri
       - name: Capture actual game on portrait, short and tall displays
@@ -117,5 +119,21 @@ jobs:
         with:
           name: poop-smash-debug-apk
           path: build/poop-smash-debug.apk
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Build debug Android App Bundle
+        run: |
+          sed -i -E "s/^version\\/code=[0-9]+$/version\\/code=$((1000 + GITHUB_RUN_NUMBER))/" export_presets.cfg
+          bash scripts/check_godot.sh godot --headless --path . --export-debug "Android AAB" build/poop-smash-debug.aab
+          test -s build/poop-smash-debug.aab
+          unzip -tq build/poop-smash-debug.aab
+          unzip -l build/poop-smash-debug.aab | grep -q "base/manifest/AndroidManifest.xml"
+          jarsigner -verify -verbose build/poop-smash-debug.aab 2>&1 | grep -i "jar verified"
+      - name: Upload debug Android App Bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: poop-smash-debug-aab
+          path: build/poop-smash-debug.aab
           retention-days: 14
           if-no-files-found: error
