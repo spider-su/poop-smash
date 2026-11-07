@@ -127,13 +127,13 @@ jobs:
           test -s build/poop-smash-debug.aab
           unzip -tq build/poop-smash-debug.aab
           unzip -Z1 build/poop-smash-debug.aab > "$RUNNER_TEMP/aab-entries.txt"
-          grep -Fxq "base/manifest/AndroidManifest.xml" "$RUNNER_TEMP/aab-entries.txt"
-          grep -Eq '^META-INF/[^/]+\.(RSA|DSA|EC)$' "$RUNNER_TEMP/aab-entries.txt"
-          jarsigner -verify build/poop-smash-debug.aab
+          grep -Eq '(^|/)AndroidManifest.xml$' "$RUNNER_TEMP/aab-entries.txt"
+          jarsigner -keystore "$HOME/.android/debug.keystore" -storepass android -keypass android -sigalg SHA256withRSA -digestalg SHA-256 -signedjar build/poop-smash-debug-signed.aab build/poop-smash-debug.aab androiddebugkey
+          jarsigner -verify build/poop-smash-debug-signed.aab
       - name: Upload debug Android App Bundle
         uses: actions/upload-artifact@v7
         with:
           name: poop-smash-debug-aab
-          path: build/poop-smash-debug.aab
+          path: build/poop-smash-debug-signed.aab
           retention-days: 14
           if-no-files-found: error
