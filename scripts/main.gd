@@ -535,7 +535,8 @@ func _draw_explosion(font: Font, c: Vector2, dark: Color, light: Color) -> void:
 			var dir := Vector2.from_angle(TAU * float(i) / 12.0)
 			draw_line(c + dir * 94.0, c + dir * (130.0 + phase * 220.0), Color("#fff3a4"), 8.0, true)
 	var scale := 1.0 + 0.22 * sin(minf(phase / 0.28, 1.0) * PI)
-	draw_string(font, c + Vector2(-135 * scale, 24), burst_word, HORIZONTAL_ALIGNMENT_CENTER, 270, int(63 * scale), Color("#fff3d0"), 4, Color("#88422a"))
+	draw_string(font, c + Vector2(-135 * scale + 4, 29), burst_word, HORIZONTAL_ALIGNMENT_CENTER, 270, int(63 * scale), Color("#88422a"))
+	draw_string(font, c + Vector2(-135 * scale, 24), burst_word, HORIZONTAL_ALIGNMENT_CENTER, 270, int(63 * scale), Color("#fff3d0"))
 
 func _draw_background(size: Vector2) -> void:
 	var top := Color("#89dafa") if screen == Screens.MENU else Color("#fff3d3")
