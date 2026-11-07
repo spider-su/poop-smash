@@ -46,7 +46,7 @@ jobs:
           curl -fL --retry 3 "$base/Godot_v${GODOT_RELEASE}_export_templates.tpz" -o "$RUNNER_TEMP/templates.tpz"
           echo "f298490b8d44d934be425a5a65a51bf15f422428b229a06a6e11d9ffea248011  $RUNNER_TEMP/templates.tpz" | sha256sum -c -
           unzip -j -q "$RUNNER_TEMP/templates.tpz" "templates/android_debug.apk" "templates/version.txt" -d "$HOME/.local/share/godot/export_templates/$GODOT_TEMPLATE_VERSION"
-          godot --version
+          "$RUNNER_TEMP/godot/godot" --version
       - name: Import resources
         run: godot --headless --path . --editor --import --quit
       - name: Run squish rules tests
