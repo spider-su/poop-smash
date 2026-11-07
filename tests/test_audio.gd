@@ -34,12 +34,14 @@ func _run() -> void:
 	_check(audio.players[1].stream == null, "Rapid tapping bypassed audio cooldown")
 	audio.play("burst", 0)
 	_check(audio.players[0].stream == first and audio.players[1].stream != null, "New sound interrupted the previous clip")
+	await process_frame
 	audio.enabled = false
 	for player in audio.players:
 		_check(not player.playing, "Muted audio is still playing")
-	await process_frame
+	# Let the audio mixer retire stopped playbacks before freeing the pool.
+	await create_timer(0.06).timeout
 	audio.free()
-	await process_frame
+	await create_timer(0.06).timeout
 	if failures == 0:
 		print("Audio cache, overlap, cooldown and envelope: PASS")
 	quit(0 if failures == 0 else 1)

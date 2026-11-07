@@ -8,6 +8,6 @@ status=${PIPESTATUS[0]}
 if [[ "$status" -ne 0 ]]; then
   exit "$status"
 fi
-if grep -Eq '(^ERROR:|SCRIPT ERROR:|Parse Error:)' "$log"; then
+if grep -Eq '(^ERROR:|SCRIPT ERROR:|Parse Error:|ObjectDB instances were leaked)' "$log"; then
   exit 1
 fi
