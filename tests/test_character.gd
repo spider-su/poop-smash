@@ -54,6 +54,8 @@ func _run() -> void:
 	for i in 4:
 		e.tap()
 	_check(e.state == Expressions.State.DIZZY, "Repeated taps should cause dizziness")
+	e.release()
+	_check(e.state == Expressions.State.DIZZY, "Finger release hid repeated-tap dizziness")
 	e.step(0.1, true, 0.95, Vector2(100, 0), 0)
 	_check(e.state == Expressions.State.PANICKING, "High pressure should cause panic")
 	var bubble := e.bubble

@@ -44,7 +44,8 @@ func drag(stretch: float) -> void:
 		say(["Nooo!", "Oh no!"])
 
 func release() -> void:
-	enter(State.LAUGHING, 0.75)
+	# Fast taps should leave a readable dizzy reaction after the finger lifts.
+	enter(State.DIZZY if state == State.DIZZY else State.LAUGHING, 0.75)
 	say(["Hehe!", "Pfffft!"])
 
 func respawn() -> void:
