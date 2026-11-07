@@ -106,6 +106,12 @@ jobs:
           bash scripts/check_godot.sh godot --headless --path . --export-debug "Android" build/poop-smash-debug.apk
           test -s build/poop-smash-debug.apk
           "$ANDROID_HOME/build-tools/35.0.1/aapt" dump badging build/poop-smash-debug.apk | grep "com.spidersu.poopsmash"
+          "$ANDROID_HOME/build-tools/35.0.1/aapt" dump permissions build/poop-smash-debug.apk > "$RUNNER_TEMP/apk-permissions.txt"
+          grep -q "android.permission.VIBRATE" "$RUNNER_TEMP/apk-permissions.txt"
+          if grep -q "android.permission.INTERNET" "$RUNNER_TEMP/apk-permissions.txt"; then
+            echo "Prototype must remain offline"
+            exit 1
+          fi
       - name: Upload installable APK
         uses: actions/upload-artifact@v7
         with:

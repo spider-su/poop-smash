@@ -102,4 +102,3 @@ func _draw_results(font: Font, size: Vector2) -> void:
 	draw_string(font, Vector2(56, panel.position.y + panel.size.y * 0.53), "PERSONAL BEST: %d" % game.best_score, HORIZONTAL_ALIGNMENT_CENTER, int(size.x - 112), 27, INK)
 	_button(font, Screens.results_retry_rect(size), "PLAY AGAIN", Color("#57d538"), Color("#294d21"), 32)
 	_button(font, Screens.results_menu_rect(size), "MAIN MENU", Color("#9451d7"), Color.WHITE, 27)
-
