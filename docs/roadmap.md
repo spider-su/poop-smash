@@ -5,16 +5,21 @@
 - [x] Four poop types, elastic touch reactions and sound variations
 - [x] Combo scoring, best score, saved sound/haptics options
 - [x] Original generated app icon and polished UI
-- [x] Glossy layered character: five sculpted layers, shadows and reflections
+- [x] Continuous deformable vector swirl, directional shading and attached reflections
 - [x] Expressive face: outlined eyes, pupils, catchlights, brows, mouth and tongue
 - [x] Variant-specific visual accents and reactions
-- [x] Impact compression, recoil oscillation, animated burst ring, comic captions and character shake
-- [x] Existing CI tests and Android debug APK workflow
+- [x] Local touch dents, bounded stretch, delayed neighboring motion and damped recoil
+- [x] Expression state machine, infrequent comic bubbles, panic and playful respawn
+- [x] Burst anticipation, variant droplets, landing squashes, impact ring and reduced effects
+- [x] Cached original audio, overlapping player pool and rate-limited reactions
+- [x] Safe-area-aware layout and animated results score
+- [x] Extended unit/integration tests and Android debug APK workflow
+- [x] Reproducible graphical capture script for nine states at three aspect ratios
 
 ## Still to validate
 - [ ] On-device artwork, FPS, gesture feel and screen sizes
 - [ ] Launcher icon cropping on adaptive Android shapes
-- [ ] Real voice recordings and additional gesture-specific responses
+- [ ] Speaker/headphone mix and subjective voice/gesture feedback
 - [ ] Final Play Store assets, signed AAB and closed test
 
 ## Manual acceptance

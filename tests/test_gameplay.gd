@@ -10,8 +10,9 @@ class TestGame:
 	func _save_preferences() -> void:
 		pass
 
-	func _play_sound(_kind: String) -> void:
-		pass
+	func _sync_settings() -> void:
+		super()
+		character.audio.enabled = false
 
 	func _play_voice() -> void:
 		pass
@@ -31,7 +32,7 @@ func _check(condition: bool, message: String) -> void:
 
 func _hold_until_burst(game: TestGame, fps: int) -> float:
 	var elapsed := 0.0
-	while game.burst_timer <= 0.0 and elapsed < 10.0:
+	while not game.character.spent and elapsed < 10.0:
 		game._process(1.0 / float(fps))
 		elapsed += 1.0 / float(fps)
 	return elapsed
@@ -43,53 +44,58 @@ func _run() -> void:
 	for fps in [20, 30, 60, 120]:
 		game._start_round()
 		game.current_variant = game.Variants.FROZEN
+		game.character.variant = game.current_variant
 		game._press(game._center())
 		var elapsed := _hold_until_burst(game, fps)
 		_check(absf(elapsed - 4.532) < 0.06, "Frozen hold timing differs at %d FPS: %f" % [fps, elapsed])
 		_check(absf(game.remaining_seconds - (60.0 - elapsed)) < 0.001, "Round clock differs from gameplay time")
 
 		game._start_round()
-		game._burst()
+		game.character.smash()
 		game._process(game.BURST_LENGTH + 0.1)
 		game.current_variant = game.Variants.FROZEN
+		game.character.variant = game.current_variant
 		game._press(game._center())
 		_hold_until_burst(game, fps)
 		_check(game.combo_count == 2, "Hold-only Frozen smash broke combo at %d FPS" % fps)
 
 	game._start_free_play()
 	game.current_variant = game.Variants.CLASSIC
+	game.character.variant = game.current_variant
 	var center := game._center()
-	_check(game._press(center + Vector2(0, 245)), "Visible bottom of character rejected touch")
+	_check(game._press(game.character.to_global(game.character.deformation.warp(Vector2(0, 245)))), "Visible bottom of character rejected touch")
 	game._release()
-	_check(not game._press(center + Vector2(210, -180)), "Empty corner accepted touch")
-	game.squish_offset = Vector2(20, 10)
-	game.squash = 1.0
-	game.drag_stretch = Vector2(60, 0)
-	_check(game._character_contains(center + Vector2(245, 110)), "Stretched body rejected touch")
+	_check(not game._press(game.character.to_global(Vector2(210, -180))), "Empty corner accepted touch")
+	game.character.deformation.pull = Vector2(100, 0)
+	game.character.deformation.anchor = Vector2(210, 110)
+	_check(game.character.contains(game.character.deformation.warp(Vector2(206, 110))), "Stretched body rejected touch")
 	game._start_free_play()
 	game.current_variant = game.Variants.CLASSIC
+	game.character.variant = game.current_variant
 	game._press(center)
-	game._drag(center + Vector2(220, 0), Vector2(220, 0))
-	var single_event_pressure := game.pressure
+	game._drag(game.character.to_global(Vector2(220, 0)), Vector2(220, 0) * game.character.scale)
+	var single_event_pressure := game.character.pressure
 	game._start_free_play()
 	game.current_variant = game.Variants.CLASSIC
+	game.character.variant = game.current_variant
 	game._press(center)
 	for i in 4:
-		game._drag(center + Vector2((i + 1) * 55, 0), Vector2(55, 0))
-	_check(is_equal_approx(game.pressure, single_event_pressure), "Swipe pressure depends on event count")
+		game._drag(game.character.to_global(Vector2((i + 1) * 55, 0)), Vector2(55, 0) * game.character.scale)
+	_check(is_equal_approx(game.character.pressure, single_event_pressure), "Swipe pressure depends on event count")
 
 	game._start_free_play()
-	game.pressure = 0.95
+	game.character.pressure = 0.95
 	game.current_variant = game.Variants.CLASSIC
+	game.character.variant = game.current_variant
 	var touch := InputEventScreenTouch.new()
 	touch.position = center
 	touch.pressed = true
 	touch.index = 0
 	game._input(touch)
-	_check(game.burst_timer > 0.0 and game.active_touch == -1, "Burst retained a stale touch owner")
+	_check(game.character.spent and game.active_touch == -1, "Burst retained a stale touch owner")
 
 	game._start_round()
-	game._burst()
+	game.character.smash()
 	game._process(game.BURST_LENGTH + game.ScoreRules.COMBO_WINDOW_SECONDS + 0.1)
 	_check(game.combo_count == 0, "Combo did not expire after respawn")
 	game._start_round()

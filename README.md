@@ -1,5 +1,7 @@
 # Poop Smash
 
-An original, touch-first cartoon squish game built with Godot 4.7.2, adapted from the engineering approach of [Rescue Team](https://github.com/spider-su/rescue-team).
+An original, offline touchscreen cartoon squish toy built with Godot 4.7.2 / GDScript for Android portrait screens.
 
-Prototype in progress: tap, hold and drag a silly poop character, building up pressure until it bursts and respawns. No original Rescue Team game assets or puzzles are copied.
+Tap, hold, stretch and release a living cartoon swirl. Play freely or chase a personal best in the 60-second challenge. Classic, Frozen, Golden and Volcano share localized elastic physics, expressive faces and original synthesized sounds. No network permission, ads, accounts or tracking.
+
+See [architecture and validation](docs/gameplay-polish.md) for component responsibilities, tests, screenshot capture, APK delivery and device acceptance limits.
