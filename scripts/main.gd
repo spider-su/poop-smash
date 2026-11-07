@@ -2,6 +2,7 @@ extends Node2D
 
 const Rules = preload("res://scripts/squish_rules.gd")
 const ScoreRules = preload("res://scripts/score_rules.gd")
+const Variants = preload("res://scripts/poop_variants.gd")
 const SAVE_PATH := "user://poop_smash.cfg"
 const ROUND_SECONDS := 60.0
 const BASE_RADIUS := 176.0
@@ -24,6 +25,10 @@ var squash_velocity := 0.0
 var drag_stretch := Vector2.ZERO
 var hold_seconds := 0.0
 var total_smashes := 0
+var current_variant := Variants.CLASSIC
+var variant_sequence := 0
+var last_reward := 0
+var reward_timer := 0.0
 var arcade_mode := false
 var round_finished := false
 var remaining_seconds := ROUND_SECONDS
@@ -52,6 +57,7 @@ func _ready() -> void:
 	add_child(sound_player)
 	finger = _center()
 	_load_preferences()
+	_next_variant()
 	queue_redraw()
 
 func _process(delta: float) -> void:
@@ -60,6 +66,7 @@ func _process(delta: float) -> void:
 		remaining_seconds = maxf(0.0, remaining_seconds - delta)
 		if remaining_seconds <= 0.0:
 			_finish_round()
+	reward_timer = maxf(0.0, reward_timer - delta)
 	combo_window = maxf(0.0, combo_window - delta)
 	if combo_window <= 0.0:
 		combo_count = 0
@@ -85,14 +92,15 @@ func _process(delta: float) -> void:
 			particle_velocity.clear()
 			particle_size.clear()
 			expression = "happy"
+			_next_variant()
 	else:
 		if holding:
 			hold_seconds += dt
-			pressure = Rules.add_pressure(pressure, Rules.HOLD_GAIN * dt)
+			pressure = Rules.add_pressure(pressure, Rules.HOLD_GAIN * dt * Variants.pressure_multiplier(current_variant))
 			if pressure > 0.72:
 				expression = "worried"
 				expression_timer = 0.15
-			if pressure >= 1.0:
+			if pressure >= Variants.burst_threshold(current_variant):
 				_burst()
 		else:
 			pressure = maxf(0.0, pressure - dt * 0.18)
@@ -173,6 +181,7 @@ func _start_round() -> void:
 	particles.clear()
 	particle_velocity.clear()
 	particle_size.clear()
+	_next_variant()
 
 func _finish_round() -> void:
 	round_finished = true
@@ -199,6 +208,20 @@ func _save_preferences() -> void:
 	if result != OK:
 		push_warning("Could not save Poop Smash preferences: %s" % error_string(result))
 
+func _next_variant() -> void:
+	# Cycle predictably in free play; randomized selection keeps arcade rounds fresh.
+	if arcade_mode:
+		current_variant = Variants.ALL[rng.randi_range(0, Variants.ALL.size() - 1)]
+	else:
+		current_variant = Variants.ALL[variant_sequence % Variants.ALL.size()]
+		variant_sequence += 1
+	pressure = 0.0
+	squash = 0.0
+	squash_velocity = 0.0
+	drag_stretch = Vector2.ZERO
+	squish_offset = Vector2.ZERO
+	squish_velocity = Vector2.ZERO
+
 func _center() -> Vector2:
 	return get_viewport_rect().size * Vector2(0.5, 0.53)
 
@@ -209,7 +232,7 @@ func _press(position: Vector2) -> bool:
 	finger = position
 	finger_start = position
 	hold_seconds = 0.0
-	pressure = Rules.add_pressure(pressure, Rules.TAP_GAIN)
+	pressure = Rules.add_pressure(pressure, Rules.TAP_GAIN * Variants.pressure_multiplier(current_variant))
 	squash_velocity += 3.8
 	expression = ["surprised", "worried", "laugh"][rng.randi_range(0, 2)]
 	expression_timer = 0.45
@@ -224,7 +247,7 @@ func _drag(position: Vector2, relative: Vector2) -> void:
 		return
 	finger = position
 	drag_stretch = (position - finger_start).limit_length(220.0) * 0.28
-	pressure = Rules.add_pressure(pressure, minf(relative.length() / 550.0, Rules.DRAG_GAIN))
+	pressure = Rules.add_pressure(pressure, minf(relative.length() / 550.0, Rules.DRAG_GAIN) * Variants.pressure_multiplier(current_variant))
 	if relative.length() >= 18.0:
 		expression = "worried"
 		expression_timer = 0.30
@@ -253,7 +276,9 @@ func _burst() -> void:
 	if arcade_mode and not round_finished:
 		combo_count = ScoreRules.next_combo(combo_count, combo_window)
 		combo_window = ScoreRules.COMBO_WINDOW_SECONDS
-		score += ScoreRules.points_for_smash(combo_count)
+		last_reward = ScoreRules.points_for_smash(combo_count) * Variants.point_multiplier(current_variant)
+		score += last_reward
+		reward_timer = 1.3
 		if score > best_score:
 			best_score = score
 			_save_preferences()
@@ -261,11 +286,12 @@ func _burst() -> void:
 	particles.clear()
 	particle_velocity.clear()
 	particle_size.clear()
-	for i in 30:
-		var angle := TAU * float(i) / 30.0 + rng.randf_range(-0.22, 0.22)
+	var particle_count := 44 if current_variant == Variants.EXPLOSIVE else 30
+	for i in particle_count:
+		var angle := TAU * float(i) / float(particle_count) + rng.randf_range(-0.22, 0.22)
 		var direction := Vector2.from_angle(angle)
 		particles.append(_center() + direction * rng.randf_range(8.0, 35.0))
-		particle_velocity.append(direction * rng.randf_range(170.0, 520.0) + Vector2(0, -110))
+		particle_velocity.append(direction * rng.randf_range(170.0, 760.0 if current_variant == Variants.EXPLOSIVE else 520.0) + Vector2(0, -110))
 		particle_size.append(rng.randf_range(8.0, 26.0))
 	_play_sound("burst")
 	_rumble(55)
@@ -295,11 +321,14 @@ func _draw() -> void:
 	var font := ThemeDB.fallback_font
 	draw_string(font, Vector2(58, 115), "POOP SMASH", HORIZONTAL_ALIGNMENT_LEFT, -1, 58, INK)
 	draw_string(font, Vector2(58, 175), "Squish it. Smash it. Again!", HORIZONTAL_ALIGNMENT_LEFT, -1, 28, BROWN)
+	var palette := Variants.palette(current_variant)
+	var body_dark: Color = palette[0]
+	var body_light: Color = palette[1]
 	var c := _center() + squish_offset
 	if burst_timer > 0.0:
 		var fade := clampf(burst_timer / BURST_LENGTH, 0.0, 1.0)
 		for i in particles.size():
-			var tint := BROWN if i % 3 != 0 else LIGHT_BROWN
+			var tint: Color = body_dark if i % 3 != 0 else body_light
 			_ellipse(particles[i], Vector2.ONE * particle_size[i] * (0.3 + 0.7 * fade), tint)
 		draw_string(font, c + Vector2(-115, 25), "SPLAT!", HORIZONTAL_ALIGNMENT_LEFT, -1, 62, PINK)
 	else:
@@ -307,10 +336,19 @@ func _draw() -> void:
 		var bounce := sin(wobble * 2.0) * 4.0 * (1.0 - pressure)
 		var rx := BASE_RADIUS * dims.x
 		var ry := BASE_RADIUS * dims.y
-		_ellipse(c + Vector2(0, 110 + bounce), Vector2(rx * 1.15, ry * 0.79), BROWN, true)
-		_ellipse(c + Vector2(0, 42 + bounce), Vector2(rx * 0.89, ry * 0.81), LIGHT_BROWN, true)
-		_ellipse(c + Vector2(0, -55 + bounce), Vector2(rx * 0.67, ry * 0.72), BROWN, true)
-		_ellipse(c + Vector2(0, -122 + bounce), Vector2(rx * 0.37, ry * 0.49), LIGHT_BROWN, true)
+		_ellipse(c + Vector2(0, 110 + bounce), Vector2(rx * 1.15, ry * 0.79), body_dark, true)
+		_ellipse(c + Vector2(0, 42 + bounce), Vector2(rx * 0.89, ry * 0.81), body_light, true)
+		_ellipse(c + Vector2(0, -55 + bounce), Vector2(rx * 0.67, ry * 0.72), body_dark, true)
+		_ellipse(c + Vector2(0, -122 + bounce), Vector2(rx * 0.37, ry * 0.49), body_light, true)
+		if current_variant == Variants.FROZEN:
+			# Distinct icy shine and jagged frost across the crown.
+			draw_line(c + Vector2(-82, -110), c + Vector2(-42, -154), Color.WHITE, 7.0)
+			draw_line(c + Vector2(-42, -154), c + Vector2(0, -125), Color.WHITE, 7.0)
+		elif current_variant == Variants.GOLDEN:
+			# Small crown keeps the rare target recognizable without new art assets.
+			draw_colored_polygon(PackedVector2Array([c + Vector2(-56, -178), c + Vector2(-34, -218), c + Vector2(-10, -190), c + Vector2(22, -223), c + Vector2(54, -173)]), Color("#ffed80"))
+		elif current_variant == Variants.EXPLOSIVE:
+			_ellipse(c + Vector2(0, -176), Vector2(13, 24), Color("#ff643b"))
 		var face := c + drag_stretch * 0.20 + Vector2(0, bounce)
 		var eyes_closed := blink_remaining > 0.0
 		if eyes_closed:
@@ -336,11 +374,15 @@ func _draw() -> void:
 	_draw_footer(font, size)
 
 func _draw_hud(font: Font, size: Vector2) -> void:
+	var label_text := "%s — %s" % [Variants.display_name(current_variant), Variants.description(current_variant)]
+	draw_string(font, Vector2(58, 350), label_text, HORIZONTAL_ALIGNMENT_LEFT, size.x - 100.0, 22, INK)
+	if reward_timer > 0.0 and arcade_mode:
+		draw_string(font, Vector2(58, 455), "+%d!" % last_reward, HORIZONTAL_ALIGNMENT_LEFT, -1, 40, Color("#cf672c"))
 	if arcade_mode:
 		draw_string(font, Vector2(58, 228), "TIME: %02d   SCORE: %d" % [ceili(remaining_seconds), score], HORIZONTAL_ALIGNMENT_LEFT, -1, 31, INK)
 		if combo_count > 1 and combo_window > 0.0 and not round_finished:
-			draw_string(font, Vector2(58, 365), "COMBO x%d!" % mini(combo_count, ScoreRules.MAX_MULTIPLIER), HORIZONTAL_ALIGNMENT_LEFT, -1, 30, PINK)
-		draw_string(font, Vector2(58, 410), "BEST: %d" % best_score, HORIZONTAL_ALIGNMENT_LEFT, -1, 25, BROWN)
+			draw_string(font, Vector2(58, 390), "COMBO x%d!" % mini(combo_count, ScoreRules.MAX_MULTIPLIER), HORIZONTAL_ALIGNMENT_LEFT, -1, 30, PINK)
+		draw_string(font, Vector2(58, 430), "BEST: %d" % best_score, HORIZONTAL_ALIGNMENT_LEFT, -1, 25, BROWN)
 	else:
 		draw_string(font, Vector2(58, 230), "SMASHES: %d    BEST: %d" % [total_smashes, best_score], HORIZONTAL_ALIGNMENT_LEFT, -1, 28, INK)
 	var control := Rect2(Vector2(48, 249), Vector2(size.x - 96, 76))
@@ -375,7 +417,7 @@ func _play_sound(kind: String) -> void:
 	var samples := int(duration * float(audio.mix_rate))
 	var pcm := PackedByteArray()
 	pcm.resize(samples * 2)
-	var pitch := rng.randf_range(0.72, 1.36)
+	var pitch := rng.randf_range(0.72, 1.36) * Variants.sound_pitch(current_variant)
 	var voice := rng.randi_range(0, 3)
 	for i in samples:
 		var t := float(i) / float(audio.mix_rate)

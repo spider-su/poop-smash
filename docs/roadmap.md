@@ -1,37 +1,26 @@
 # Poop Smash roadmap
 
-## M0 — playable draft (complete)
-- [x] Original procedural cartoon character
-- [x] Tap, press-and-hold, drag to squish
-- [x] Pressure, splat burst, automatic respawn
-- [x] Synthesized randomized squish sounds
-- [x] Smash counter
-- [x] Godot headless test + Android APK workflow
+## Complete: playable prototype and character feel
+- [x] Tap, hold, drag, elastic rebound, expressive eyes and splatter
+- [x] Generated sound variations and optional vibration
+- [x] Sound and haptic preferences saved locally
+- [x] Android CI and rule tests
 
-## M1 — character feel
-- [x] Finger-position deformation and drag stretch
-- [x] Spring-driven wobble and shape recovery
-- [x] Animated face: eye tracking, blinking and reactions
-- [x] Particle movement, gravity and shrinking during splat
-- [x] Varied generated squish, drag and burst sounds
-- [x] Toggle sound and haptics, persist choices locally
-- [ ] Physical Android device playtest and tuning
-- [ ] Richer deformation and voiced character quips
+## Complete: arcade loop
+- [x] Free-play and optional 60-second timed rounds
+- [x] Scoring, combos up to x5 and persisted personal best
+- [x] Four variants: Classic, Frozen, Golden and Volcano
+- [x] Distinct colors, overlays, behavior, pitch and reward rules
+- [x] Predictable rotation in free play, randomized spawns in arcade
 
-## M2 — short game loop
-- [x] Optional 60-second arcade challenge with timer and game-over state
-- [x] Points and combo multipliers, capped at x5
-- [x] Local personal best score and preferences
-- [ ] Different poop types and special reactions
-- [ ] Better game-over and retry UI
-- [ ] Artwork, icon and Play Store assets
+## Next
+- [ ] Physical Android device acceptance and balancing
+- [ ] Improved results screen and retry UI
+- [ ] More convincing localized squash and voice reactions
+- [ ] Main-menu polish, icons and Play Store assets
+- [ ] Release signing, AAB and closed testing
 
-## M3 — release
-- [ ] Accessibility, Android performance and device acceptance
-- [ ] Release signing and AAB
-- [ ] Closed testing and player feedback
-
-## Testing
-Use Godot headless import, squish tests, scoring tests, and scene boot. Check a real
-Android device for interactions, sound toggle, vibration toggle, exact 60-second
-round ending, score persistence after app relaunch, and returning to free play.
+## Device checklist
+Check Classic (normal), Frozen (harder), Golden (double points), Volcano (early,
+large blast), repeatedly in free play and arcade. Confirm touch/swipe, timer,
+combo resets, game over, best-score persistence, and settings after restart.
