@@ -88,7 +88,7 @@ jobs:
           test -s build/poop-smash-debug.apk
           "$ANDROID_HOME/build-tools/35.0.1/aapt" dump badging build/poop-smash-debug.apk | grep "com.spidersu.poopsmash"
       - name: Upload installable APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: poop-smash-debug-apk
           path: build/poop-smash-debug.apk
