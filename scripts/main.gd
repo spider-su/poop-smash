@@ -74,7 +74,16 @@ func _ready() -> void:
 	queue_redraw()
 
 func _process(delta: float) -> void:
-	var dt := minf(delta, 0.033)
+	# Consume all elapsed time in small steps so springs stay stable on slow phones.
+	var elapsed := delta
+	while elapsed > 0.0:
+		var step := minf(elapsed, 1.0 / 120.0)
+		_advance(step)
+		elapsed -= step
+	queue_redraw()
+
+func _advance(delta: float) -> void:
+	var dt := delta
 	if screen == Screens.PLAY and arcade_mode and not round_finished:
 		remaining_seconds = maxf(0.0, remaining_seconds - delta)
 		if remaining_seconds <= 0.0:
@@ -83,7 +92,9 @@ func _process(delta: float) -> void:
 	touch_flash = maxf(0.0, touch_flash - dt * 3.0)
 	if screen == Screens.RESULTS:
 		celebration_time += dt
-	combo_window = maxf(0.0, combo_window - delta)
+	# The player cannot interact during splatter; start the combo deadline on respawn.
+	if screen == Screens.PLAY and burst_timer <= 0.0:
+		combo_window = maxf(0.0, combo_window - delta)
 	if combo_window <= 0.0:
 		combo_count = 0
 	wobble += dt * 3.0
@@ -133,14 +144,13 @@ func _process(delta: float) -> void:
 		var acceleration := (target_squash - squash) * 64.0 - squash_velocity * 13.0
 		squash_velocity += acceleration * dt
 		squash += squash_velocity * dt
-	queue_redraw()
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		if event.pressed and active_touch == -1:
 			if _press_ui(event.position):
 				return
-			if _press(event.position):
+			if _press(event.position) and holding:
 				active_touch = event.index
 		elif not event.pressed and active_touch == event.index:
 			_release()
@@ -151,7 +161,7 @@ func _input(event: InputEvent) -> void:
 		if event.pressed and active_touch == -1:
 			if _press_ui(event.position):
 				return
-			if _press(event.position):
+			if _press(event.position) and holding:
 				active_touch = -2
 		elif not event.pressed and active_touch == -2:
 			_release()
@@ -276,7 +286,7 @@ func _center() -> Vector2:
 	return get_viewport_rect().size * Vector2(0.5, 0.53)
 
 func _press(position: Vector2) -> bool:
-	if screen != Screens.PLAY or burst_timer > 0.0 or not Rules.is_inside(position, _center(), BASE_RADIUS * 1.3):
+	if screen != Screens.PLAY or burst_timer > 0.0 or not _character_contains(position):
 		return false
 	holding = true
 	finger = position
@@ -304,7 +314,8 @@ func _drag(position: Vector2, relative: Vector2) -> void:
 	touch_position = position
 	touch_flash = 0.6
 	drag_stretch = (position - finger_start).limit_length(220.0) * 0.28
-	pressure = Rules.add_pressure(pressure, minf(relative.length() / 550.0, Rules.DRAG_GAIN) * Variants.pressure_multiplier(current_variant))
+	# Use distance rather than a per-event cap: touch sampling rates vary by device.
+	pressure = Rules.add_pressure(pressure, relative.length() * Rules.DRAG_GAIN_PER_PIXEL * Variants.pressure_multiplier(current_variant))
 	if relative.length() >= 18.0:
 		expression = "worried"
 		expression_timer = 0.30
@@ -360,8 +371,11 @@ func _rumble(milliseconds: int) -> void:
 		Input.vibrate_handheld(milliseconds)
 
 func _ellipse(center: Vector2, radii: Vector2, color: Color, distort: bool = false) -> void:
+	draw_colored_polygon(_ellipse_polygon(center, radii, distort), color)
+
+func _ellipse_polygon(center: Vector2, radii: Vector2, distort: bool = false) -> PackedVector2Array:
 	var poly := PackedVector2Array()
-	var local_finger := finger - (_center() + squish_offset)
+	var local_finger := finger - center
 	for i in 48:
 		var a := TAU * float(i) / 48.0
 		var vertex := Vector2(cos(a) * radii.x, sin(a) * radii.y)
@@ -371,7 +385,24 @@ func _ellipse(center: Vector2, radii: Vector2, color: Color, distort: bool = fal
 				var local_delta := local_finger - vertex
 				vertex += local_delta.normalized() * 45.0 * squash * Rules.dent_factor(vertex, local_finger, 170.0)
 		poly.append(center + vertex)
-	draw_colored_polygon(poly, color)
+	return poly
+
+func _body_rects() -> Array[Rect2]:
+	var c := _center() + squish_offset
+	var dims := Rules.deformation(clampf(squash, 0.0, 1.0)) * BASE_RADIUS
+	var bounce := sin(wobble * 2.0) * 4.0 * (1.0 - pressure)
+	var shapes: Array[Rect2] = []
+	for shape in [Vector3(121, 1.18, 0.83), Vector3(110, 1.15, 0.79), Vector3(42, 0.89, 0.81), Vector3(-55, 0.67, 0.72), Vector3(-122, 0.37, 0.49)]:
+		var radii := dims * Vector2(shape.y, shape.z)
+		shapes.append(Rect2(c + Vector2(0, shape.x + bounce) - radii, radii * 2.0))
+	return shapes
+
+func _character_contains(position: Vector2) -> bool:
+	# Share the drawn contours, including rebound and stretch, with touch detection.
+	for rect in _body_rects():
+		if Geometry2D.is_point_in_polygon(position, _ellipse_polygon(rect.get_center(), rect.size * 0.5, true)):
+			return true
+	return false
 
 func _draw() -> void:
 	var size := get_viewport_rect().size
@@ -389,15 +420,11 @@ func _draw() -> void:
 			_ellipse(particles[i], Vector2.ONE * particle_size[i] * (0.3 + 0.7 * fade), tint)
 		draw_string(font, c + Vector2(-115, 25), "SPLAT!", HORIZONTAL_ALIGNMENT_LEFT, -1, 62, PINK)
 	else:
-		var dims := Rules.deformation(clampf(squash, 0.0, 1.0))
 		var bounce := sin(wobble * 2.0) * 4.0 * (1.0 - pressure)
-		var rx := BASE_RADIUS * dims.x
-		var ry := BASE_RADIUS * dims.y
-		_ellipse(c + Vector2(0, 121 + bounce), Vector2(rx * 1.18, ry * 0.83), body_dark.darkened(0.27), true)
-		_ellipse(c + Vector2(0, 110 + bounce), Vector2(rx * 1.15, ry * 0.79), body_dark, true)
-		_ellipse(c + Vector2(0, 42 + bounce), Vector2(rx * 0.89, ry * 0.81), body_light, true)
-		_ellipse(c + Vector2(0, -55 + bounce), Vector2(rx * 0.67, ry * 0.72), body_dark, true)
-		_ellipse(c + Vector2(0, -122 + bounce), Vector2(rx * 0.37, ry * 0.49), body_light, true)
+		var body := _body_rects()
+		var body_colors := [body_dark.darkened(0.27), body_dark, body_light, body_dark, body_light]
+		for i in body.size():
+			_ellipse(body[i].get_center(), body[i].size * 0.5, body_colors[i], true)
 		_ellipse(c + Vector2(-38, -113 + bounce), Vector2(17, 31), Color(1, 1, 1, 0.25), true)
 		_ellipse(c + Vector2(-113, 56 + bounce), Vector2(19, 35), Color(1, 1, 1, 0.17), true)
 		if current_variant == Variants.FROZEN:

@@ -59,6 +59,9 @@ jobs:
         run: godot --headless --path . --script res://tests/test_variants.gd
       - name: Test menu and results hitboxes
         run: godot --headless --path . --script res://tests/test_screen_flow.gd
+      - name: Test gameplay timing and touch
+        # Cover frame-rate fairness and real input/state integration before export.
+        run: godot --headless --path . --script res://tests/test_gameplay.gd
       - name: Boot playable scene
         run: godot --headless --path . --quit-after 5
       - name: Configure debug keystore
