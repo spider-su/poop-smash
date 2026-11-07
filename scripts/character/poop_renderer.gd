@@ -32,27 +32,38 @@ func _init() -> void:
 	for i in CONTROL.size():
 		for j in 4:
 			rest.append(_catmull(CONTROL[posmod(i - 1, CONTROL.size())], CONTROL[i], CONTROL[(i + 1) % CONTROL.size()], CONTROL[(i + 2) % CONTROL.size()], float(j) / 4.0))
-	# Subdivide a proper concave triangulation; a radial fan can cross swirl valleys.
+	# Refine long triangle edges so material UVs bend smoothly across the swirl.
 	mesh_points = rest.duplicate()
 	var triangles := Geometry2D.triangulate_polygon(rest)
 	var midpoints := {}
 	for i in range(0, triangles.size(), 3):
-		var a := triangles[i]
-		var b := triangles[i + 1]
-		var c := triangles[i + 2]
-		var center := mesh_points.size()
-		mesh_points.append((rest[a] + rest[b] + rest[c]) / 3.0)
-		mesh_sources.append(PackedInt32Array([a, b, c]))
-		for edge in [Vector2i(a, b), Vector2i(b, c), Vector2i(c, a)]:
-			var key := Vector2i(mini(edge.x, edge.y), maxi(edge.x, edge.y))
-			if not midpoints.has(key):
-				midpoints[key] = mesh_points.size()
-				mesh_points.append((rest[edge.x] + rest[edge.y]) * 0.5)
-				mesh_sources.append(PackedInt32Array([edge.x, edge.y]))
-			var middle: int = midpoints[key]
-			mesh_indices.append_array(PackedInt32Array([edge.x, middle, center, middle, edge.y, center]))
+		_refine_triangle(triangles[i], triangles[i + 1], triangles[i + 2], midpoints)
 	for point in mesh_points:
 		mesh_uv.append(_material_uv(point))
+
+func _refine_triangle(a: int, b: int, c: int, midpoints: Dictionary) -> void:
+	var corners := [a, b, c]
+	var longest := 0
+	var distance := 0.0
+	for edge in 3:
+		var length_squared := mesh_points[corners[edge]].distance_squared_to(mesh_points[corners[(edge + 1) % 3]])
+		if length_squared > distance:
+			distance = length_squared
+			longest = edge
+	if distance <= 40.0 * 40.0:
+		mesh_indices.append_array(PackedInt32Array([a, b, c]))
+		return
+	var first: int = corners[longest]
+	var second: int = corners[(longest + 1) % 3]
+	var opposite: int = corners[(longest + 2) % 3]
+	var key := Vector2i(mini(first, second), maxi(first, second))
+	if not midpoints.has(key):
+		midpoints[key] = mesh_points.size()
+		mesh_points.append((mesh_points[first] + mesh_points[second]) * 0.5)
+		mesh_sources.append(PackedInt32Array([first, second]))
+	var middle: int = midpoints[key]
+	_refine_triangle(first, middle, opposite, midpoints)
+	_refine_triangle(middle, second, opposite, midpoints)
 
 func _material_uv(point: Vector2) -> Vector2:
 	var top := rest[0].y
@@ -113,10 +124,10 @@ func _body_mesh(canvas: CanvasItem, d, kind: int, dark: Color, light: Color) -> 
 	arrays[Mesh.ARRAY_COLOR] = mesh_colors
 	arrays[Mesh.ARRAY_INDEX] = mesh_indices
 	arrays[Mesh.ARRAY_TEX_UV] = mesh_uv
-	# Under 500 vertices; topology and lighting are cached, only positions move.
+	# Topology, UVs and tint are cached; only positions move during play.
 	mesh.clear_surfaces()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	canvas.draw_mesh(mesh, BODY_TEXTURE)
+	canvas.draw_mesh(mesh, BODY_TEXTURE, Transform2D.IDENTITY, Color(1.25, 1.25, 1.25, 1.0))
 
 func _ellipse(canvas: CanvasItem, deformation, center: Vector2, radii: Vector2, color: Color) -> void:
 	var points := PackedVector2Array()

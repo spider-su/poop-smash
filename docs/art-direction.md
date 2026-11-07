@@ -20,7 +20,7 @@ Use the existing `tests/capture_visuals.gd` to capture nine actual game states a
 
 ## Shared glossy body material
 
-`assets/character/gloss-material.png` is a second original asset generated with the built-in imagegen tool. Its neutral grayscale lighting is tinted by the four existing palettes and rendered on the existing 491-vertex live mesh; it is not a replacement static character. `scripts/character/body_uv_profile.gd` records 129 normalized alpha-silhouette spans read from the unmodified PNG. Cached UV coordinates fit those spans to the gameplay contour, so the reflections and folds follow dents and stretch. An underlying solid fill preserves continuity at antialiased edges. There is no new shader, runtime generation, or physics dependency.
+`assets/character/gloss-material.png` is a second original asset generated with the built-in imagegen tool. Its neutral grayscale lighting is tinted by the four existing palettes and rendered on the existing 504-vertex live mesh; it is not a replacement static character. `scripts/character/body_uv_profile.gd` records 129 normalized alpha-silhouette spans read from the unmodified PNG. Cached UV coordinates fit those spans to the gameplay contour; long mesh edges are subdivided to at most 40 canvas units for smooth texture projection, so the reflections and folds follow dents and stretch. An underlying solid fill preserves continuity at antialiased edges. There is no new shader, runtime generation, or physics dependency.
 
 Original generated source: `/Users/alex/.codex/generated_images/01a1b5ae-2274-74d3-b44d-19b7e588e500/exec-cda965d4-5804-4e70-b2c8-2eaf6a01c457.png`.
 

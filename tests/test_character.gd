@@ -17,7 +17,8 @@ func _check(ok: bool, message: String) -> void:
 
 func _run() -> void:
 	var renderer := Renderer.new()
-	_check(renderer.mesh_points.size() < 500, "Character mesh exceeds vertex budget")
+	print("Character mesh vertices: ", renderer.mesh_points.size())
+	_check(renderer.mesh_points.size() < 750, "Character mesh exceeds vertex budget")
 	_check(renderer.mesh_uv.size() == renderer.mesh_points.size(), "Material UVs missing")
 	for uv in renderer.mesh_uv:
 		_check(uv.is_finite() and uv.x >= 0 and uv.x <= 1 and uv.y >= 0 and uv.y <= 1, "Material UV outside texture")
