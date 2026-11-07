@@ -4,6 +4,7 @@ const Variants = preload("res://scripts/poop_variants.gd")
 const Expressions = preload("res://scripts/character/poop_expressions.gd")
 const BODY_TEXTURE = preload("res://assets/character/gloss-material.png")
 const UVProfile = preload("res://scripts/character/body_uv_profile.gd")
+const FACE_FONT = preload("res://assets/fonts/Fredoka-Bold.ttf")
 const INK := Color("#39160f")
 const CONTROL := [
 	Vector2(-155, 236), Vector2(-208, 209), Vector2(-225, 167),
@@ -18,6 +19,7 @@ const CONTROL := [
 	Vector2(218, 210), Vector2(170, 235), Vector2(90, 249),
 	Vector2(0, 255)
 ]
+var face_indices := PackedInt32Array()
 var rest := PackedVector2Array()
 var mesh := ArrayMesh.new()
 var mesh_points := PackedVector2Array()
@@ -28,6 +30,9 @@ var mesh_uv := PackedVector2Array()
 var mesh_sources: Array[PackedInt32Array] = []
 
 func _init() -> void:
+	for i in 32:
+		var next := (i + 1) % 32
+		face_indices.append_array(PackedInt32Array([0, 1 + i, 1 + next, 1 + i, 33 + i, 33 + next, 1 + i, 33 + next, 1 + next]))
 	# One closed, continuous silhouette. Interior swirl lines never split the body.
 	for i in CONTROL.size():
 		for j in 4:
@@ -136,6 +141,20 @@ func _ellipse(canvas: CanvasItem, deformation, center: Vector2, radii: Vector2, 
 		points.append(deformation.warp(center + Vector2(cos(angle), sin(angle)) * radii))
 	canvas.draw_colored_polygon(points, color)
 
+# A small triangle fan keeps the lighting continuous as each feature deforms.
+func _shaded_ellipse(canvas: CanvasItem, d, center: Vector2, radii: Vector2, lit: Color, rim: Color) -> void:
+	var points := PackedVector2Array([d.warp(center + radii * Vector2(-0.22, -0.28))])
+	var colors := PackedColorArray([lit])
+	for ring in 2:
+		var radius := 0.58 if ring == 0 else 1.0
+		var offset := radii * Vector2(-0.22, -0.28) * (1.0 - radius)
+		for i in 32:
+			var angle := TAU * float(i) / 32.0
+			points.append(d.warp(center + offset + Vector2(cos(angle), sin(angle)) * radii * radius))
+			var shade := 0.18 if ring == 0 else 0.72 + 0.28 * (sin(angle) + 1.0) * 0.5
+			colors.append(lit.lerp(rim, shade))
+	RenderingServer.canvas_item_add_triangle_array(canvas.get_canvas_item(), face_indices, points, colors)
+
 func _path(canvas: CanvasItem, deformation, controls: Array[Vector2], color: Color, width: float) -> void:
 	var line := PackedVector2Array()
 	for i in controls.size() - 1:
@@ -184,10 +203,10 @@ func _face(canvas: CanvasItem, d, e, kind: int) -> void:
 			lid *= 0.82
 		var radii := Vector2(52, (63 if alarm else 58) * lid * asymmetric)
 		_ellipse(canvas, d, eye + Vector2(0, 3), radii + Vector2(4, 4), INK)
-		_ellipse(canvas, d, eye, radii, Color("#fffdf4"))
+		_shaded_ellipse(canvas, d, eye, radii, Color("#ffffff"), Color("#cbbac9"))
 		if lid > 0.3:
 			var look: Vector2 = e.look * Vector2(1.0, lid)
-			_ellipse(canvas, d, eye + look + Vector2(3, 4), Vector2(25, 31 * lid), INK)
+			_shaded_ellipse(canvas, d, eye + look + Vector2(3, 4), Vector2(25, 31 * lid), Color("#17101c"), Color("#693b30"))
 			_ellipse(canvas, d, eye + look + Vector2(-3, -6), Vector2(9, 11 * lid), Color.WHITE)
 			_ellipse(canvas, d, eye + look + Vector2(10, 10), Vector2(3, 4 * lid), Color("#e3ccea"))
 			if e.state == Expressions.State.DIZZY:
@@ -197,21 +216,27 @@ func _face(canvas: CanvasItem, d, e, kind: int) -> void:
 		_path(canvas, d, [Vector2(eye.x - 24, eyebrow_y + slant), Vector2(eye.x, eyebrow_y - 7), Vector2(eye.x + 24, eyebrow_y - slant)], INK, 6.0)
 		var cheek := Vector2(side * 119, 55)
 		_ellipse(canvas, d, cheek, Vector2(24, 11), Color(0.96, 0.48, 0.30, 0.45))
-		_ellipse(canvas, d, cheek + Vector2(-5, -4), Vector2(11, 4), Color("#ffc8d1"))
+		_ellipse(canvas, d, cheek + Vector2(-5, -4), Vector2(8, 3), Color(1.0, 0.88, 0.72, 0.65))
 	if alarm:
-		_ellipse(canvas, d, Vector2(0, 86), Vector2(28, 16.0 + e.mouth * 34.0), INK)
-		_ellipse(canvas, d, Vector2(0, 108), Vector2(17, 9), Color("#f580a3"))
+		var opening: float = 16.0 + e.mouth * 34.0
+		_shaded_ellipse(canvas, d, Vector2(0, 86), Vector2(28, opening), Color("#120b15"), Color("#713027"))
+		_shaded_ellipse(canvas, d, Vector2(0, 86 + opening * 0.59), Vector2(17, opening * 0.28), Color("#ffb1a3"), Color("#e54961"))
 	else:
 		var mouth := PackedVector2Array()
+		var mouth_colors := PackedColorArray()
 		var amount: float = 0.65 + e.mouth * 0.6
 		for i in 33:
 			var angle := TAU * float(i) / 32.0
-			var p := Vector2(cos(angle) * 67.0, 83.0 + sin(angle) * 40.0 * amount)
+			var p := Vector2(cos(angle) * 72.0, 83.0 + sin(angle) * 40.0 * amount)
 			if sin(angle) < 0.0:
 				p.y = 65.0 + sin(angle) * 5.0
 			mouth.append(d.warp(p))
-		canvas.draw_colored_polygon(mouth, INK)
-		_ellipse(canvas, d, Vector2(sin(e.age * 6.0) * (6.0 if e.state == Expressions.State.LAUGHING else 1.5), 106), Vector2(36, 16 * amount), Color("#ff685c"))
+			mouth_colors.append(Color("#251016").lerp(Color("#863527"), maxf(0.0, sin(angle))))
+		canvas.draw_polygon(mouth, mouth_colors)
+		canvas.draw_polyline(mouth, INK, 3.0, true)
+		var tongue := Vector2(sin(e.age * 6.0) * (6.0 if e.state == Expressions.State.LAUGHING else 1.5), 83 + 25 * amount)
+		_shaded_ellipse(canvas, d, tongue, Vector2(37, 13 * amount), Color("#ffb5a7"), Color("#eb455a"))
+		_path(canvas, d, [tongue + Vector2(-3, -8 * amount), tongue + Vector2(0, -3 * amount), tongue + Vector2(0, 1)], Color(0.72, 0.15, 0.25, 0.55), 2.0)
 		_ellipse(canvas, d, Vector2(0, 68), Vector2(33, 5), Color("#fff9e9"))
 
 func _variant(canvas: CanvasItem, d, time: float, kind: int, ratio: float, reduced: bool) -> void:
@@ -254,7 +279,7 @@ func _bubble(canvas: CanvasItem, e) -> void:
 	var color := Color(1, 0.99, 0.93, clampf(fade, 0.0, 1.0))
 	canvas.draw_style_box(_bubble_style(color), Rect2(center - Vector2(73, 26), Vector2(146, 52)))
 	canvas.draw_colored_polygon(PackedVector2Array([center + Vector2(-38, 22), center + Vector2(-48, 42), center + Vector2(-18, 22)]), color)
-	canvas.draw_string(ThemeDB.fallback_font, center + Vector2(-68, 8), e.bubble, HORIZONTAL_ALIGNMENT_CENTER, 136, 25, Color(0.27, 0.15, 0.22, color.a))
+	canvas.draw_string(FACE_FONT, center + Vector2(-68, 8), e.bubble, HORIZONTAL_ALIGNMENT_CENTER, 136, 25, Color(0.27, 0.15, 0.22, color.a))
 
 var bubble_style := StyleBoxFlat.new()
 func _bubble_style(color: Color) -> StyleBoxFlat:

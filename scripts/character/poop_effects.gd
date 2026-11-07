@@ -1,6 +1,7 @@
 extends RefCounted
 
 const Variants = preload("res://scripts/poop_variants.gd")
+const FACE_FONT = preload("res://assets/fonts/Fredoka-Bold.ttf")
 const ANTICIPATION := 0.085
 const DURATION := 0.82
 var age := DURATION
@@ -93,6 +94,6 @@ func draw_on(canvas: CanvasItem) -> void:
 		if variant == Variants.EXPLOSIVE and i % 4 == 0:
 			canvas.draw_circle(positions[i] - velocities[i] * 0.016, radius * 0.6, Color(1, 0.7, 0.1, 0.5))
 	var bounce := 1.0 + 0.16 * sin(minf(phase * 4.0, 1.0) * PI)
-	var font := ThemeDB.fallback_font
+	var font := FACE_FONT
 	canvas.draw_string_outline(font, Vector2(-180, 16), word, HORIZONTAL_ALIGNMENT_CENTER, 360, int(54 * bounce), 9, Color("#69372e"))
 	canvas.draw_string(font, Vector2(-180, 16), word, HORIZONTAL_ALIGNMENT_CENTER, 360, int(54 * bounce), Color("#fff4d6"))
