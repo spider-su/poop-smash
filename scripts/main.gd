@@ -58,6 +58,10 @@ var particle_size: Array[float] = []
 var rng := RandomNumberGenerator.new()
 var sound_player: AudioStreamPlayer
 var sound_cooldown := 0.0
+var impact_timer := 0.0
+var recoil_timer := 0.0
+var shake_timer := 0.0
+var burst_word := "SPLAT!"
 var touch_flash := 0.0
 var touch_position := Vector2.ZERO
 var celebration_time := 0.0
@@ -90,6 +94,9 @@ func _advance(delta: float) -> void:
 			_finish_round()
 	reward_timer = maxf(0.0, reward_timer - delta)
 	touch_flash = maxf(0.0, touch_flash - dt * 3.0)
+	impact_timer = maxf(0.0, impact_timer - dt * 5.0)
+	recoil_timer = maxf(0.0, recoil_timer - dt * 4.2)
+	shake_timer = maxf(0.0, shake_timer - dt * 5.0)
 	if screen == Screens.RESULTS:
 		celebration_time += dt
 	# The player cannot interact during splatter; start the combo deadline on respawn.
@@ -295,7 +302,8 @@ func _press(position: Vector2) -> bool:
 	pressure = Rules.add_pressure(pressure, Rules.TAP_GAIN * Variants.pressure_multiplier(current_variant))
 	touch_position = position
 	touch_flash = 1.0
-	squash_velocity += 3.8
+	impact_timer = 1.0
+	squash_velocity += 5.0
 	expression = ["surprised", "worried", "laugh"][rng.randi_range(0, 2)]
 	expression_timer = 0.45
 	_play_sound("tap")
@@ -329,7 +337,8 @@ func _release() -> void:
 	holding = false
 	active_touch = -1
 	hold_seconds = 0.0
-	squash_velocity -= 1.2
+	squash_velocity -= 3.2
+	recoil_timer = 1.0
 	if burst_timer <= 0.0:
 		expression = "laugh"
 		expression_timer = 0.45
@@ -338,6 +347,10 @@ func _burst() -> void:
 	if burst_timer > 0.0:
 		return
 	burst_timer = BURST_LENGTH
+	shake_timer = 1.0
+	impact_timer = 0.0
+	recoil_timer = 0.0
+	burst_word = ["SPLAT!", "BOOM!", "PLOP!", "OOF!"][rng.randi_range(0, 3)]
 	holding = false
 	active_touch = -1
 	total_smashes += 1
@@ -407,56 +420,20 @@ func _character_contains(position: Vector2) -> bool:
 func _draw() -> void:
 	var size := get_viewport_rect().size
 	_draw_background(size)
-	_ellipse(Vector2(size.x * 0.5, size.y * 0.87), Vector2(260, 42), Color("#f2d4b0"))
 	var font := ThemeDB.fallback_font
 	var palette := Variants.palette(current_variant)
 	var body_dark: Color = palette[0]
 	var body_light: Color = palette[1]
 	var c := _center() + squish_offset
+	_ellipse(Vector2(size.x * 0.5, size.y * 0.87), Vector2(263, 43), Color("#eabf95"))
+	_ellipse(Vector2(size.x * 0.5, size.y * 0.87 + 9), Vector2(205, 25), Color(0.38, 0.18, 0.08, 0.13))
+	if shake_timer > 0.0 and screen == Screens.PLAY:
+		var jitter := Vector2(sin(wobble * 36.0), cos(wobble * 31.0)) * 11.0 * shake_timer
+		c += jitter
 	if burst_timer > 0.0:
-		var fade := clampf(burst_timer / BURST_LENGTH, 0.0, 1.0)
-		for i in particles.size():
-			var tint: Color = body_dark if i % 3 != 0 else body_light
-			_ellipse(particles[i], Vector2.ONE * particle_size[i] * (0.3 + 0.7 * fade), tint)
-		draw_string(font, c + Vector2(-115, 25), "SPLAT!", HORIZONTAL_ALIGNMENT_LEFT, -1, 62, PINK)
+		_draw_explosion(font, c, body_dark, body_light)
 	else:
-		var bounce := sin(wobble * 2.0) * 4.0 * (1.0 - pressure)
-		var body := _body_rects()
-		var body_colors := [body_dark.darkened(0.27), body_dark, body_light, body_dark, body_light]
-		for i in body.size():
-			_ellipse(body[i].get_center(), body[i].size * 0.5, body_colors[i], true)
-		_ellipse(c + Vector2(-38, -113 + bounce), Vector2(17, 31), Color(1, 1, 1, 0.25), true)
-		_ellipse(c + Vector2(-113, 56 + bounce), Vector2(19, 35), Color(1, 1, 1, 0.17), true)
-		if current_variant == Variants.FROZEN:
-			# Distinct icy shine and jagged frost across the crown.
-			draw_line(c + Vector2(-82, -110), c + Vector2(-42, -154), Color.WHITE, 7.0)
-			draw_line(c + Vector2(-42, -154), c + Vector2(0, -125), Color.WHITE, 7.0)
-		elif current_variant == Variants.GOLDEN:
-			# Small crown keeps the rare target recognizable without new art assets.
-			draw_colored_polygon(PackedVector2Array([c + Vector2(-56, -178), c + Vector2(-34, -218), c + Vector2(-10, -190), c + Vector2(22, -223), c + Vector2(54, -173)]), Color("#ffed80"))
-		elif current_variant == Variants.EXPLOSIVE:
-			_ellipse(c + Vector2(0, -176), Vector2(13, 24), Color("#ff643b"))
-		var face := c + drag_stretch * 0.20 + Vector2(0, bounce)
-		var eyes_closed := blink_remaining > 0.0
-		if eyes_closed:
-			_ellipse(face + Vector2(-62, -23), Vector2(37, 7), INK)
-			_ellipse(face + Vector2(62, -23), Vector2(37, 7), INK)
-		else:
-			_ellipse(face + Vector2(-62, -23), Vector2(38, 48), Color.WHITE)
-			_ellipse(face + Vector2(62, -23), Vector2(38, 48), Color.WHITE)
-			var look := (finger - face).limit_length(180.0) / 14.0 if holding else Vector2.ZERO
-			_ellipse(face + Vector2(-62, -23) + look, Vector2(17, 23), INK)
-			_ellipse(face + Vector2(62, -23) + look, Vector2(17, 23), INK)
-		_ellipse(face + Vector2(-110, 54), Vector2(26, 15), PINK)
-		_ellipse(face + Vector2(110, 54), Vector2(26, 15), PINK)
-		if expression == "worried" or expression == "surprised":
-			_ellipse(face + Vector2(0, 81), Vector2(27, 39), INK)
-		elif expression == "laugh":
-			_ellipse(face + Vector2(0, 81), Vector2(52, 28), INK)
-			_ellipse(face + Vector2(0, 94), Vector2(29, 9), PINK)
-		else:
-			draw_arc(face + Vector2(0, 62), 42, 0.16, PI - 0.16, 24, INK, 9.0, true)
-		draw_string(font, Vector2(size.x * 0.5 - 135, size.y * 0.78), "TAP  •  HOLD  •  DRAG", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, BROWN)
+		_draw_glossy_character(c, body_dark, body_light)
 	if touch_flash > 0.0 and screen == Screens.PLAY:
 		draw_arc(touch_position, 28.0 + (1.0 - touch_flash) * 46.0, 0.0, TAU, 32, Color(1, 1, 1, touch_flash * 0.7), 5.0)
 	if screen == Screens.MENU:
@@ -466,6 +443,99 @@ func _draw() -> void:
 	else:
 		_draw_hud(font, size)
 		_draw_footer(font, size)
+
+func _draw_glossy_character(c: Vector2, dark: Color, light: Color) -> void:
+	var bounce := sin(wobble * 2.0) * 4.0 * (1.0 - pressure)
+	var dims := Rules.deformation(clampf(squash, 0.0, 1.0)) * BASE_RADIUS
+	var impact := impact_timer * 0.08
+	var rebound := recoil_timer * sin((1.0 - recoil_timer) * PI * 4.0) * 0.10
+	var grow_x := 1.0 + impact - rebound
+	var grow_y := 1.0 - impact + rebound
+	# Several overlapping layers build a soft, shiny, sculpted swirl.
+	var offsets := [Vector2(0, 121), Vector2(0, 108), Vector2(0, 47), Vector2(0, -48), Vector2(0, -113)]
+	var factors := [Vector2(1.19, 0.86), Vector2(1.14, 0.79), Vector2(0.90, 0.78), Vector2(0.68, 0.69), Vector2(0.38, 0.52)]
+	for i in factors.size():
+		var pos: Vector2 = c + offsets[i] + Vector2(0, bounce)
+		var rad: Vector2 = dims * factors[i] * Vector2(grow_x, grow_y)
+		_ellipse(pos + Vector2(0, 9), rad, dark.darkened(0.36), true)
+		var color := dark if i % 2 == 0 else light
+		if i == 4:
+			color = light
+		_ellipse(pos, rad, color, true)
+		_ellipse(pos + Vector2(-rad.x * 0.18, -rad.y * 0.22), rad * Vector2(0.65, 0.55), color.lightened(0.13), true)
+	# Subtle curved glints are attached to the soft body rather than to the screen.
+	_ellipse(c + Vector2(-42, -126 + bounce), Vector2(18, 30) * Vector2(grow_x, grow_y), Color(1, 1, 1, 0.33), true)
+	_ellipse(c + Vector2(-112, 53 + bounce), Vector2(16, 31), Color(1, 1, 1, 0.22), true)
+	_ellipse(c + Vector2(103, 111 + bounce), Vector2(28, 11), Color(1, 1, 1, 0.13), true)
+	_draw_variant_marks(c + Vector2(0, bounce))
+	_draw_expressive_face(c + drag_stretch * 0.20 + Vector2(0, bounce))
+	if screen == Screens.PLAY:
+		draw_string(ThemeDB.fallback_font, Vector2(_center().x - 132, get_viewport_rect().size.y * 0.78), "TAP  •  HOLD  •  DRAG", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, BROWN)
+
+func _draw_variant_marks(c: Vector2) -> void:
+	if current_variant == Variants.FROZEN:
+		draw_line(c + Vector2(-87, -112), c + Vector2(-48, -162), Color("#e8fbff"), 8.0, true)
+		draw_line(c + Vector2(-48, -162), c + Vector2(-8, -129), Color("#e8fbff"), 8.0, true)
+		draw_line(c + Vector2(80, 41), c + Vector2(117, 10), Color("#dafbff"), 5.0, true)
+	elif current_variant == Variants.GOLDEN:
+		draw_colored_polygon(PackedVector2Array([c + Vector2(-60, -184), c + Vector2(-39, -230), c + Vector2(-9, -202), c + Vector2(23, -233), c + Vector2(61, -185)]), Color("#ffcb28"))
+		for gem in [-34.0, 0.0, 34.0]:
+			_ellipse(c + Vector2(gem, -190), Vector2(7, 9), Color("#fff1a0"))
+	elif current_variant == Variants.EXPLOSIVE:
+		_ellipse(c + Vector2(0, -177), Vector2(16, 29), Color("#ff5b2d"))
+		_ellipse(c + Vector2(-3, -182), Vector2(7, 15), Color("#ffe587"))
+
+func _draw_expressive_face(face: Vector2) -> void:
+	var worried := expression == "worried" or expression == "surprised" or (current_variant == Variants.EXPLOSIVE and pressure > 0.34)
+	var icy := current_variant == Variants.FROZEN
+	var eye_scale := 0.90 if icy else 1.0
+	var blink := blink_remaining > 0.0
+	var look := (finger - face).limit_length(165.0) / 13.0 if holding else Vector2(sin(wobble) * 2.0, 0)
+	for side in [-1, 1]:
+		var anchor := face + Vector2(63 * side, -30)
+		_ellipse(anchor + Vector2(0, 5), Vector2(43, 52) * eye_scale, INK.darkened(0.12))
+		if blink:
+			_ellipse(anchor, Vector2(36, 7), Color("#fff9f1"))
+		else:
+			_ellipse(anchor, Vector2(38, 48) * eye_scale, Color("#fffdf5"))
+			_ellipse(anchor + look + Vector2(6, 5), Vector2(21, 25), INK)
+			_ellipse(anchor + look + Vector2(0, -5), Vector2(9, 11), Color.WHITE)
+			_ellipse(anchor + look + Vector2(12, 10), Vector2(4, 5), Color.WHITE)
+		if worried:
+			draw_line(anchor + Vector2(-26, -66), anchor + Vector2(18, -75 - 4 * side), INK, 7.0, true)
+		elif current_variant == Variants.GOLDEN:
+			draw_arc(anchor + Vector2(0, -52), 21.0, PI, TAU, 12, INK, 5.0, true)
+	_ellipse(face + Vector2(-114, 49), Vector2(31, 18), Color("#f789a3"))
+	_ellipse(face + Vector2(114, 49), Vector2(31, 18), Color("#f789a3"))
+	_ellipse(face + Vector2(-118, 43), Vector2(12, 6), Color("#ffc6ce"))
+	_ellipse(face + Vector2(108, 45), Vector2(12, 6), Color("#ffc6ce"))
+	if worried:
+		_ellipse(face + Vector2(0, 78), Vector2(36, 44), INK)
+		_ellipse(face + Vector2(0, 95), Vector2(20, 11), Color("#f383a4"))
+	elif expression == "laugh" or current_variant == Variants.GOLDEN:
+		_ellipse(face + Vector2(0, 83), Vector2(57, 33), INK)
+		_ellipse(face + Vector2(0, 98), Vector2(31, 13), Color("#f779a0"))
+		_ellipse(face + Vector2(0, 65), Vector2(35, 9), Color("#fff8ec"))
+	else:
+		draw_arc(face + Vector2(0, 62), 46.0, 0.16, PI - 0.16, 24, INK, 8.0, true)
+
+func _draw_explosion(font: Font, c: Vector2, dark: Color, light: Color) -> void:
+	var phase := 1.0 - clampf(burst_timer / BURST_LENGTH, 0.0, 1.0)
+	var ring_radius := 45.0 + phase * 240.0
+	if phase < 0.55:
+		draw_arc(c, ring_radius, 0, TAU, 48, Color(1, 1, 1, (1.0 - phase / 0.55) * 0.75), 11.0, true)
+	for i in particles.size():
+		var tint: Color = dark if i % 3 != 0 else light
+		_ellipse(particles[i] + Vector2(0, 9), Vector2.ONE * particle_size[i] * (0.3 + burst_timer / BURST_LENGTH), tint.darkened(0.30))
+		_ellipse(particles[i], Vector2.ONE * particle_size[i] * (0.3 + burst_timer / BURST_LENGTH), tint)
+		if i % 4 == 0:
+			_ellipse(particles[i] + Vector2(-4, -4), Vector2(4, 6), Color(1, 1, 1, 0.35))
+	if phase < 0.37:
+		for i in 12:
+			var dir := Vector2.from_angle(TAU * float(i) / 12.0)
+			draw_line(c + dir * 94.0, c + dir * (130.0 + phase * 220.0), Color("#fff3a4"), 8.0, true)
+	var scale := 1.0 + 0.22 * sin(minf(phase / 0.28, 1.0) * PI)
+	draw_string(font, c + Vector2(-135 * scale, 24), burst_word, HORIZONTAL_ALIGNMENT_CENTER, 270, int(63 * scale), Color("#fff3d0"), 4, Color("#88422a"))
 
 func _draw_background(size: Vector2) -> void:
 	var top := Color("#89dafa") if screen == Screens.MENU else Color("#fff3d3")
