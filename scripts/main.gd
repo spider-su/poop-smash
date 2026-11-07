@@ -10,6 +10,7 @@ const PARK = preload("res://assets/backgrounds/park.png")
 const SAVE_PATH := "user://poop_smash.cfg"
 const ROUND_SECONDS := 60.0
 const BURST_LENGTH := 0.82
+const STARTUP_SECONDS := 1.35
 
 # Available to device accessibility presets without introducing another menu.
 @export var reduced_effects := false
@@ -36,6 +37,7 @@ var sound_enabled := true
 var haptics_enabled := true
 var wobble := 0.0
 var celebration_time := 0.0
+var startup_remaining := STARTUP_SECONDS
 var content_origin := Vector2.ZERO
 var content_size := Vector2(720, 1280)
 var rng := RandomNumberGenerator.new()
@@ -89,6 +91,7 @@ func _process(delta: float) -> void:
 	ui.queue_redraw()
 
 func _advance(dt: float) -> void:
+	startup_remaining = maxf(0.0, startup_remaining - dt)
 	if screen == Screens.PLAY and arcade_mode and not round_finished:
 		remaining_seconds = maxf(0.0, remaining_seconds - dt)
 		if remaining_seconds <= 0.0:
@@ -104,6 +107,8 @@ func _advance(dt: float) -> void:
 	character.step(dt, screen == Screens.PLAY, screen == Screens.PLAY)
 
 func _input(event: InputEvent) -> void:
+	if startup_remaining > 0.0:
+		return
 	if event is InputEventScreenTouch:
 		if event.pressed and active_touch == -1:
 			if _press_ui(event.position):
@@ -238,6 +243,8 @@ func _on_smash(kind: int) -> void:
 		combo_window = ScoreRules.COMBO_WINDOW_SECONDS
 		max_combo = maxi(max_combo, combo_count)
 		last_reward = ScoreRules.points_for_smash(combo_count) * Variants.point_multiplier(kind)
+		if combo_count >= 3:
+			character.audio.play("nice", kind, 0.85)
 		score += last_reward
 		reward_timer = 1.3
 

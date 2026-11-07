@@ -31,12 +31,15 @@ func say(words: Array[String]) -> void:
 	bubble_time = 1.15
 	bubble_cooldown = 2.8
 
-func tap() -> void:
+func tap(reaction: String = "") -> void:
 	taps = taps + 1 if tap_window > 0.0 else 1
 	tap_window = 0.8
 	enter(State.DIZZY if taps >= 4 else State.SURPRISED, 0.65)
 	blink_clock = minf(blink_clock, 0.08)
-	say(["Hey!", "Oops!", "Again?!"])
+	if reaction.is_empty():
+		say(["Hey!", "Oops!", "Again?!"])
+	else:
+		say([reaction])
 
 func drag(stretch: float) -> void:
 	enter(State.SURPRISED if stretch > 130.0 else State.SQUISHED, 0.25)

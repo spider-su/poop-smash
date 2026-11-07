@@ -25,6 +25,9 @@ func _draw() -> void:
 		return
 	draw_set_transform(game.content_origin)
 	var size: Vector2 = game.content_size
+	if game.startup_remaining > 0.0:
+		_draw_loading(size)
+		return
 	if game.screen == Screens.MENU:
 		_draw_menu(size)
 	elif game.screen == Screens.RESULTS:
@@ -32,6 +35,29 @@ func _draw() -> void:
 	else:
 		_draw_hud(size)
 		_draw_footer(size)
+
+func _draw_loading(size: Vector2) -> void:
+	for row in 32:
+		var t := float(row) / 31.0
+		draw_rect(Rect2(0, size.y * t, size.x, size.y / 31.0 + 2), Color("#42bdf9").lerp(Color("#6624bd"), t))
+	var center := Vector2(size.x * 0.5, size.y * 0.48)
+	for i in 12:
+		var angle := TAU * float(i) / 12.0
+		var ray := Vector2.from_angle(angle)
+		draw_colored_polygon(PackedVector2Array([center, center + ray * size.y * 0.54, center + Vector2.from_angle(angle + 0.08) * size.y * 0.54]), Color(1.0, 0.88, 0.47, 0.08))
+	_text(Rect2(26, size.y * 0.10, size.x - 52, 92), "Poop", 86, Color("#fffaf1"), INK, 13)
+	_text(Rect2(20, size.y * 0.18, size.x - 40, 104), "Smash!", 96, Color("#ffe539"), INK, 14)
+	var mascot_scale := minf(0.8, minf(size.x / 560.0, size.y * 0.44 / 510.0))
+	draw_set_transform(game.content_origin + center, 0.0, Vector2.ONE * mascot_scale)
+	game.character.renderer.draw_on(self, game.character.deformation, game.character.expressions, game.character.variant, game.character.pressure, game.reduced_effects)
+	draw_set_transform(game.content_origin)
+	_text(Rect2(50, size.y * 0.70, size.x - 100, 54), "GET READY!", 34, Color.WHITE, PURPLE, 6)
+	var track := Rect2(size.x * 0.22, size.y * 0.765, size.x * 0.56, 34)
+	_panel(track, Color("#42107e"), Color("#321164"), 17, Color("#efc8ff"))
+	var progress := clampf(1.0 - game.startup_remaining / game.STARTUP_SECONDS, 0.0, 1.0)
+	if progress > 0.0:
+		_panel(Rect2(track.position + Vector2(5, 5), Vector2(maxf(18, (track.size.x - 10) * progress), 24)), Color("#f08aff"), Color("#a72bff"), 12, Color("#fff1bb"))
+	_text(Rect2(50, size.y * 0.81, size.x - 100, 50), "Loading...", 24, Color("#fff4d6"), PURPLE, 4)
 
 func _number(value: int) -> String:
 	var digits := str(value)

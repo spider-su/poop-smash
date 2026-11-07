@@ -28,6 +28,8 @@ func _run() -> void:
 			previous = clip.data
 	_check(bytes < 500000, "Audio cache exceeds memory budget")
 	_check(audio.players.size() == Audio.POOL_SIZE, "Audio pool size incorrect")
+	for word in ["ouch", "oh", "nice", "oops"]:
+		_check(audio.bank.has(word), "Spoken reaction is missing: " + word)
 	audio.play("tap", 0)
 	var first = audio.players[0].stream
 	audio.play("tap", 0)

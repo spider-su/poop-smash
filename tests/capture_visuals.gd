@@ -46,38 +46,40 @@ func _capture() -> void:
 	game.haptics_enabled = false
 	game._sync_settings()
 	game._process(0.5)
-	await _shot("01-menu")
+	await _shot("01-loading")
+	game.startup_remaining = 0.0
+	await _shot("02-menu")
 	_kind(0)
-	await _shot("02-classic")
+	await _shot("03-classic")
 	game._press(game.character.to_global(Vector2(140, 60)))
 	game._process(0.7)
-	await _shot("03-squish")
+	await _shot("04-squish")
 	_kind(0)
 	game._press(game.character.to_global(Vector2(160, 60)))
 	game._drag(game.character.to_global(Vector2(310, 15)), Vector2(150, -45) * game.character.scale)
 	game._process(0.22)
-	await _shot("04-stretch")
+	await _shot("05-stretch")
 	_kind(1)
 	game.character.pressure = 0.72
 	game._press(game._center())
 	game._process(0.1)
-	await _shot("05-frozen")
+	await _shot("06-frozen")
 	_kind(2)
-	await _shot("06-golden")
+	await _shot("07-golden")
 	_kind(3)
 	game._press(game._center())
 	game._process(0.45)
-	await _shot("07-volcano")
+	await _shot("08-volcano")
 	game.character.smash()
 	game._process(0.26)
-	await _shot("08-explosion")
+	await _shot("09-explosion")
 	game._start_round()
 	game.score = 12750
 	game.round_smashes = 29
 	game.max_combo = 5
 	game._finish_round()
 	game._process(1.1)
-	await _shot("09-results")
+	await _shot("10-results")
 	game._start_round()
 	game.current_variant = 0
 	game.character.reset(0)
@@ -87,8 +89,8 @@ func _capture() -> void:
 	game.remaining_seconds = 43.0
 	game._press(game.character.to_global(Vector2(140, 60)))
 	game._process(0.35)
-	await _shot("10-challenge")
-	var manifest := {"engine": Engine.get_version_info().string, "renderer": RenderingServer.get_current_rendering_method(), "window": str(root.size), "viewport": str(root.get_visible_rect().size), "screens": 10}
+	await _shot("11-challenge")
+	var manifest := {"engine": Engine.get_version_info().string, "renderer": RenderingServer.get_current_rendering_method(), "window": str(root.size), "viewport": str(root.get_visible_rect().size), "screens": 11}
 	var file := FileAccess.open(output.path_join("manifest.json"), FileAccess.WRITE)
 	file.store_string(JSON.stringify(manifest, "\t") + "\n")
 	print("Visual captures: PASS ", output)

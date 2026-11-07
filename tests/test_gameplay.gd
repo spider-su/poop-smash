@@ -24,12 +24,12 @@ func _check(condition: bool, message: String) -> void:
 		failures += 1
 		push_error(message)
 
-func _hold_until_burst(game: TestGame, fps: int) -> float:
-	var elapsed := 0.0
-	while not game.character.spent and elapsed < 10.0:
+func _hold_without_motion(game: TestGame, fps: int, seconds: float) -> void:
+	for _frame in int(fps * seconds):
 		game._process(1.0 / float(fps))
-		elapsed += 1.0 / float(fps)
-	return elapsed
+
+func _drag_to_burst(game: TestGame) -> void:
+	game._drag(game.character.to_global(Vector2(150, 0)), Vector2(1100, 0) * game.character.scale)
 
 func _run() -> void:
 	var game := TestGame.new()
@@ -40,9 +40,13 @@ func _run() -> void:
 		game.current_variant = game.Variants.FROZEN
 		game.character.variant = game.current_variant
 		game._press(game._center())
-		var elapsed := _hold_until_burst(game, fps)
-		_check(absf(elapsed - 4.532) < 0.06, "Frozen hold timing differs at %d FPS: %f" % [fps, elapsed])
-		_check(absf(game.remaining_seconds - (60.0 - elapsed)) < 0.001, "Round clock differs from gameplay time")
+		var tap_pressure: float = game.character.pressure
+		_hold_without_motion(game, fps, 6.0)
+		_check(not game.character.spent, "A stationary hold destroyed the character at %d FPS" % fps)
+		_check(is_equal_approx(game.character.pressure, tap_pressure), "Stationary hold added smash pressure at %d FPS" % fps)
+		_check(absf(game.remaining_seconds - 54.0) < 0.01, "Challenge clock stopped during a stationary hold")
+		_drag_to_burst(game)
+		_check(game.character.spent and game.combo_count == 1, "Dragging no longer earns a smash at %d FPS" % fps)
 
 		game._start_round()
 		game.character.smash()
@@ -50,8 +54,8 @@ func _run() -> void:
 		game.current_variant = game.Variants.FROZEN
 		game.character.variant = game.current_variant
 		game._press(game._center())
-		_hold_until_burst(game, fps)
-		_check(game.combo_count == 2, "Hold-only Frozen smash broke combo at %d FPS" % fps)
+		_drag_to_burst(game)
+		_check(game.combo_count == 2, "Hold-to-drag Frozen smash broke combo at %d FPS" % fps)
 
 	game._start_free_play()
 	game.current_variant = game.Variants.CLASSIC

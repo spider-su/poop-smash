@@ -3,7 +3,6 @@ extends RefCounted
 
 const MAX_PRESSURE := 1.0
 const TAP_GAIN := 0.18
-const HOLD_GAIN := 0.42
 const DRAG_GAIN_PER_PIXEL := 1.0 / 550.0
 
 static func is_inside(point: Vector2, center: Vector2, radius: float) -> bool:

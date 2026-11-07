@@ -59,11 +59,13 @@ func tap(point: Vector2) -> bool:
 	finger_start = point
 	hold_seconds = 0.0
 	deformation.tap(point)
-	expressions.tap()
 	pressure = Rules.add_pressure(pressure, Rules.TAP_GAIN * Variants.pressure_multiplier(variant))
 	audio.play("tap", variant)
 	if rng.randf() < 0.18:
 		audio.play("fart", variant, 0.5)
+	var voice: String = ["oh", "ouch", "oops"][rng.randi_range(0, 2)]
+	audio.play(voice, variant, 0.68)
+	expressions.tap(voice.capitalize() + "!")
 	_rumble(15)
 	_check_threshold()
 	return true
@@ -76,16 +78,23 @@ func drag(point: Vector2, relative: Vector2) -> void:
 	expressions.drag(deformation.pull_target.length())
 	pressure = Rules.add_pressure(pressure, relative.length() * Rules.DRAG_GAIN_PER_PIXEL * Variants.pressure_multiplier(variant))
 	audio.play("drag", variant, 0.65)
+	if deformation.pull_target.length() > 70.0:
+		audio.play("ouch", variant, 0.82)
 	_check_threshold()
 
 func release() -> void:
 	if not holding:
 		return
 	holding = false
-	hold_seconds = 0.0
+	var stretched := deformation.pull_target.length() > 70.0
 	deformation.release()
 	expressions.release()
 	audio.play("laugh", variant, 0.65)
+	if stretched:
+		audio.play("ouch", variant, 0.82)
+	elif hold_seconds > 0.45:
+		audio.play("oh", variant, 0.7)
+	hold_seconds = 0.0
 
 func _check_threshold() -> void:
 	if pressure >= Variants.burst_threshold(variant):
@@ -117,7 +126,6 @@ func step(dt: float, allow_respawn: bool = true, idle_audio: bool = true) -> voi
 	else:
 		if holding:
 			hold_seconds += dt
-			pressure = Rules.add_pressure(pressure, Rules.HOLD_GAIN * dt * Variants.pressure_multiplier(variant))
 			if ratio > 0.7:
 				audio.play("worried", variant, 0.5)
 			_check_threshold()
@@ -126,6 +134,7 @@ func step(dt: float, allow_respawn: bool = true, idle_audio: bool = true) -> voi
 			idle_voice_clock -= dt
 			if idle_audio and idle_voice_clock <= 0.0:
 				audio.play("idle", variant, 0.3)
+				audio.play(["oh", "nice", "oops"][rng.randi_range(0, 2)], variant, 0.62)
 				idle_voice_clock = rng.randf_range(8.0, 15.0)
 	deformation.step(dt, ratio, 1.35 if variant == Variants.FROZEN else 1.0)
 	deformation.tremble = 0.0 if reduced_effects or not holding else maxf(0.0, ratio - 0.86) * 16.0
