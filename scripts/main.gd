@@ -238,7 +238,7 @@ func _press(position: Vector2) -> bool:
 	expression_timer = 0.45
 	_play_sound("tap")
 	_rumble(18)
-	if pressure >= 1.0:
+	if pressure >= Variants.burst_threshold(current_variant):
 		_burst()
 	return true
 
@@ -254,7 +254,7 @@ func _drag(position: Vector2, relative: Vector2) -> void:
 		if sound_cooldown <= 0.0:
 			_play_sound("drag")
 			sound_cooldown = 0.13
-	if pressure >= 1.0:
+	if pressure >= Variants.burst_threshold(current_variant):
 		_burst()
 
 func _release() -> void:
@@ -375,7 +375,7 @@ func _draw() -> void:
 
 func _draw_hud(font: Font, size: Vector2) -> void:
 	var label_text := "%s — %s" % [Variants.display_name(current_variant), Variants.description(current_variant)]
-	draw_string(font, Vector2(58, 350), label_text, HORIZONTAL_ALIGNMENT_LEFT, size.x - 100.0, 22, INK)
+	draw_string(font, Vector2(58, 350), label_text, HORIZONTAL_ALIGNMENT_LEFT, int(size.x - 100.0), 22, INK)
 	if reward_timer > 0.0 and arcade_mode:
 		draw_string(font, Vector2(58, 455), "+%d!" % last_reward, HORIZONTAL_ALIGNMENT_LEFT, -1, 40, Color("#cf672c"))
 	if arcade_mode:
