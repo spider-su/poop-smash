@@ -5,6 +5,10 @@ const MENU := 0
 const PLAY := 1
 const RESULTS := 2
 
+static func time_label(remaining: float) -> String:
+	var seconds := maxi(0, ceili(remaining))
+	return "%d:%02d" % [floori(float(seconds) / 60.0), seconds % 60]
+
 static func menu_arcade_rect(size: Vector2) -> Rect2:
 	return Rect2(52, size.y - 230, size.x - 104, 108)
 

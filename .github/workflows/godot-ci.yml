@@ -65,7 +65,7 @@ jobs:
           for spec in "portrait 540x960" "short 540x720" "tall 540x1200"; do
             read -r label resolution <<< "$spec"
             bash scripts/check_godot.sh xvfb-run -a -s "-screen 0 1600x1800x24" godot --path . --resolution "$resolution" --audio-driver Dummy --rendering-method gl_compatibility --script res://tests/capture_visuals.gd -- --output="$RUNNER_TEMP/visuals/$label"
-            test "$(find "$RUNNER_TEMP/visuals/$label" -name '*.png' | wc -l)" -eq 9
+            test "$(find "$RUNNER_TEMP/visuals/$label" -name '*.png' | wc -l)" -eq 10
           done
       - name: Upload game screenshots
         uses: actions/upload-artifact@v7

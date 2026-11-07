@@ -16,7 +16,7 @@ Final generation prompt (built-in tool, opaque background):
 
 ## Verification
 
-Use the existing `tests/capture_visuals.gd` to capture nine actual game states at portrait, short and tall aspect ratios. Inspect title and control text, speech bubbles against the compact HUD, results card/mascot overlap, and every variant. Existing unit/integration tests continue to validate the unchanged interaction rules. Physical-device acceptance remains outstanding.
+Use the existing `tests/capture_visuals.gd` to capture ten actual game states at portrait, short and tall aspect ratios. Inspect title and control text, speech bubbles against the compact HUD, results card/mascot overlap, and every variant. Existing unit/integration tests continue to validate the unchanged interaction rules. Physical-device acceptance remains outstanding.
 
 ## Shared glossy body material
 

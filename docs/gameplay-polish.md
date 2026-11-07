@@ -37,7 +37,7 @@ Capture **actual rendered game frames** in a graphical session:
 godot --path . --resolution 540x960 --audio-driver Dummy --rendering-method gl_compatibility --script res://tests/capture_visuals.gd -- --output=/tmp/poop-smash-visuals
 ```
 
-The capture script saves menu, idle Classic, squish, stretch, Frozen, Golden, Volcano, explosion and results, plus an engine/viewport manifest. It refuses to produce screenshots with the headless display driver. CI uses Mesa/Xvfb at 540×960, 540×720 and 540×1200. Captures isolate saves and mute audio.
+The capture script saves menu, idle Classic, squish, stretch, Frozen, Golden, Volcano, explosion results and Challenge HUD, plus an engine/viewport manifest. It refuses to produce screenshots with the headless display driver. CI uses Mesa/Xvfb at 540×960, 540×720 and 540×1200. Captures isolate saves and mute audio.
 
 GitHub Actions builds a debug APK for `com.spidersu.poopsmash` after import, all tests, scene boot and captures. It checks the actual APK for the required vibration permission and absence of Internet permission. Open the successful run, then download **poop-smash-debug-apk** from Artifacts and extract `poop-smash-debug.apk`. **poop-smash-visuals** contains the screenshots.
 

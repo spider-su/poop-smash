@@ -14,7 +14,7 @@
 - [x] Cached original audio, overlapping player pool and rate-limited reactions
 - [x] Safe-area-aware layout and animated results score
 - [x] Extended unit/integration tests and Android debug APK workflow
-- [x] Reproducible graphical capture script for nine states at three aspect ratios
+- [x] Reproducible graphical capture script for ten states at three aspect ratios
 
 ## Still to validate
 - [ ] On-device artwork, FPS, gesture feel and screen sizes

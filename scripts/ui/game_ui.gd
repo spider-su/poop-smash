@@ -137,7 +137,7 @@ func _draw_hud(size: Vector2) -> void:
 	draw_rect(Rect2(c + Vector2(-6, 6), Vector2(12, 18)), PURPLE)
 	_panel(Rect2(135, 29, 233, 78), Color("#347c62"), Color("#15554c"), 37, Color("#8edbbd"))
 	_clock(Vector2(177, 69), 23)
-	var time_text := "0:%02d" % ceili(game.remaining_seconds) if game.arcade_mode and game.remaining_seconds < 60 else ("1:00" if game.arcade_mode else "Free Play")
+	var time_text := Screens.time_label(game.remaining_seconds) if game.arcade_mode else "Free Play"
 	_text(Rect2(211, 34, 146, 69), time_text, 38 if game.arcade_mode else 26, Color.WHITE, Color("#17443a"), 5)
 	_panel(Rect2(size.x - 267, 29, 245, 78), Color("#347c62"), Color("#15554c"), 37, Color("#8edbbd"))
 	_text(Rect2(size.x - 260, 34, 231, 69), _number(game.score if game.arcade_mode else game.round_smashes), 43, Color("#ffe64b"), INK, 6)

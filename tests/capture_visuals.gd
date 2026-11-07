@@ -78,7 +78,17 @@ func _capture() -> void:
 	game._finish_round()
 	game._process(1.1)
 	await _shot("09-results")
-	var manifest := {"engine": Engine.get_version_info().string, "renderer": RenderingServer.get_current_rendering_method(), "window": str(root.size), "viewport": str(root.get_visible_rect().size), "screens": 9}
+	game._start_round()
+	game.current_variant = 0
+	game.character.reset(0)
+	game.score = 3200
+	game.combo_count = 4
+	game.combo_window = 3.3
+	game.remaining_seconds = 43.0
+	game._press(game.character.to_global(Vector2(140, 60)))
+	game._process(0.35)
+	await _shot("10-challenge")
+	var manifest := {"engine": Engine.get_version_info().string, "renderer": RenderingServer.get_current_rendering_method(), "window": str(root.size), "viewport": str(root.get_visible_rect().size), "screens": 10}
 	var file := FileAccess.open(output.path_join("manifest.json"), FileAccess.WRITE)
 	file.store_string(JSON.stringify(manifest, "\t") + "\n")
 	print("Visual captures: PASS ", output)

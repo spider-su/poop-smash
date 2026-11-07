@@ -4,6 +4,9 @@ const Flow = preload("res://scripts/screen_flow.gd")
 
 func _initialize() -> void:
 	var size := Vector2(720, 1280)
+	if Flow.time_label(60.0) != "1:00" or Flow.time_label(59.5) != "1:00" or Flow.time_label(59.0) != "0:59" or Flow.time_label(43.0) != "0:43" or Flow.time_label(0.0) != "0:00":
+		_fail("Challenge clock must use valid minute/second labels")
+		return
 	if Flow.hit_action(Flow.MENU, Flow.menu_arcade_rect(size).get_center(), size) != "arcade":
 		_fail("Arcade start not tappable")
 		return
