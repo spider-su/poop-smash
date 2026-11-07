@@ -50,6 +50,15 @@ func _initialize() -> void:
 		if not Flow.results_panel_rect(viewport).encloses(Flow.results_retry_rect(viewport)) or not Flow.results_panel_rect(viewport).encloses(Flow.results_menu_rect(viewport)):
 			_fail("Results actions outside panel")
 			return
+	if Flow.hit_action(Flow.MENU, Flow.privacy_button_rect(size).get_center(), size) != "privacy":
+		_fail("Privacy entry not tappable")
+		return
+	if Flow.hit_action(Flow.PRIVACY, Flow.privacy_back_rect(size).get_center(), size) != "menu":
+		_fail("Privacy back not tappable")
+		return
+	if Flow.hit_action(Flow.PRIVACY, Flow.privacy_open_rect(size).get_center(), size) != "privacy_url":
+		_fail("Privacy URL not tappable")
+		return
 	print("UI screen flow and aspect ratios: PASS")
 	quit(0)
 

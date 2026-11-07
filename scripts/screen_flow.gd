@@ -4,6 +4,7 @@ extends RefCounted
 const MENU := 0
 const PLAY := 1
 const RESULTS := 2
+const PRIVACY := 3
 
 static func time_label(remaining: float) -> String:
 	var seconds := maxi(0, ceili(remaining))
@@ -36,8 +37,19 @@ static func results_retry_rect(size: Vector2) -> Rect2:
 static func results_menu_rect(size: Vector2) -> Rect2:
 	return Rect2(size.x * 0.20, size.y * 0.91, size.x * 0.60, size.y * 0.070)
 
+static func privacy_button_rect(size: Vector2) -> Rect2:
+	return Rect2(size.x * 0.32, size.y - 108, size.x * 0.36, 88)
+
+static func privacy_back_rect(size: Vector2) -> Rect2:
+	return Rect2(38, size.y - 115, size.x * 0.37, 78)
+
+static func privacy_open_rect(size: Vector2) -> Rect2:
+	return Rect2(size.x * 0.45, size.y - 115, size.x * 0.50, 78)
+
 static func hit_action(screen: int, position: Vector2, size: Vector2) -> String:
 	if screen == MENU:
+		if privacy_button_rect(size).has_point(position):
+			return "privacy"
 		if play_sound_rect(size).has_point(position):
 			return "sound"
 		if play_haptic_rect(size).has_point(position):
@@ -46,6 +58,11 @@ static func hit_action(screen: int, position: Vector2, size: Vector2) -> String:
 			return "arcade"
 		if menu_free_rect(size).has_point(position):
 			return "free"
+	elif screen == PRIVACY:
+		if privacy_back_rect(size).has_point(position):
+			return "menu"
+		if privacy_open_rect(size).has_point(position):
+			return "privacy_url"
 	elif screen == RESULTS:
 		if results_retry_rect(size).has_point(position):
 			return "retry"

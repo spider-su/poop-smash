@@ -8,6 +8,7 @@ const Character = preload("res://scripts/character/poop_character.gd")
 const GameUI = preload("res://scripts/ui/game_ui.gd")
 const PARK = preload("res://assets/backgrounds/park.png")
 const SAVE_PATH := "user://poop_smash.cfg"
+const PRIVACY_URL := "https://spider-su.github.io/poop-smash/privacy/"
 const ROUND_SECONDS := 60.0
 const BURST_LENGTH := 0.82
 const STARTUP_SECONDS := 1.35
@@ -138,6 +139,12 @@ func _notification(what: int) -> void:
 func _press_ui(position: Vector2) -> bool:
 	var action := Screens.hit_action(screen, position - content_origin, content_size)
 	match action:
+		"privacy":
+			screen = Screens.PRIVACY
+			return true
+		"privacy_url":
+			OS.shell_open(PRIVACY_URL)
+			return true
 		"arcade", "retry":
 			_start_round()
 			return true

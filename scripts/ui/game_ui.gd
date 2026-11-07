@@ -32,6 +32,8 @@ func _draw() -> void:
 		_draw_menu(size)
 	elif game.screen == Screens.RESULTS:
 		_draw_results(size)
+	elif game.screen == Screens.PRIVACY:
+		_draw_privacy(size)
 	else:
 		_draw_hud(size)
 		_draw_footer(size)
@@ -145,7 +147,10 @@ func _draw_menu(size: Vector2) -> void:
 	_button(Screens.menu_free_rect(size), "Free Play", true, "play", 47)
 	_button(Screens.menu_arcade_rect(size), "60-Second Challenge", false, "clock", 35)
 	_settings(size)
-	_text(Rect2(180, size.y - 108, size.x - 360, 88), "Best: " + _number(game.best_score), 23, Color("#fff5bc"), PURPLE, 4)
+	_text(Rect2(180, 279, size.x - 360, 50), "Best: " + _number(game.best_score), 23, Color("#fff5bc"), PURPLE, 4)
+	var privacy_btn := Screens.privacy_button_rect(size)
+	_panel(privacy_btn, Color("#c85bff"), Color("#7428d3"), 25, Color("#f3c4ff"))
+	_text(privacy_btn.grow(-6), "Privacy", 24, Color.WHITE, PURPLE, 4)
 
 func _settings(size: Vector2) -> void:
 	for action in ["sound", "vibe"]:
@@ -251,3 +256,30 @@ func _draw_results(size: Vector2) -> void:
 	var menu := Screens.results_menu_rect(size)
 	_panel(menu, Color("#c457f5"), Color("#7225c7"), 42, Color("#efbeff"))
 	_text(menu.grow(-5), "Main Menu", 36, Color.WHITE, Color("#3d126c"), 6)
+
+func _draw_privacy(size: Vector2) -> void:
+	draw_rect(Rect2(0, 0, size.x, size.y), Color("#fff6e6"))
+	_text(Rect2(32, 35, size.x - 64, 82), "Privacy Policy", 56, PURPLE, Color("#3e166e"), 6)
+	var lines := [
+		"Poop Smash | com.spidersu.poopsmash",
+		"Publisher: Alex Kotik (smart-box)",
+		"Offline game - no accounts or ads.",
+		"No analytics or third-party tracking.",
+		"Scores, sound and vibe settings stay",
+		"on your device. Nothing is uploaded.",
+		"Vibration permission: optional feedback.",
+		"No internet permission is requested.",
+		"Clear Android app storage to erase data.",
+		"Contact: alex.kotik.net@gmail.com",
+		"Full policy: spider-su.github.io/",
+		"poop-smash/privacy/"
+	]
+	var line_height := minf(49.0, (size.y - 300.0) / float(lines.size()))
+	for i in lines.size():
+		_text(Rect2(28, 140 + float(i) * line_height, size.x - 56, line_height), lines[i], 22, INK, Color("#fff6e6"), 0)
+	var back := Screens.privacy_back_rect(size)
+	_panel(back, Color("#c85bff"), Color("#7428d3"), 25, Color("#f3c4ff"))
+	_text(back.grow(-4), "Back", 27, Color.WHITE, PURPLE, 4)
+	var full := Screens.privacy_open_rect(size)
+	_panel(full, Color("#aaff0b"), Color("#22b600"), 25, Color("#e7ffb6"))
+	_text(full.grow(-4), "Open full policy", 24, Color.WHITE, Color("#28540c"), 4)
